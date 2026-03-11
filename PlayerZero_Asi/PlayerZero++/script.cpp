@@ -1513,19 +1513,23 @@ void AddSenario(Ped peddy, const std::string& senareo, Vector4 pos, bool sitDown
 void DoAmbientScenario(Ped peddy)
 {
 	static const std::string Scenarios[] = {
-		"WORLD_HUMAN_SMOKING",           // lighting up
-		"WORLD_HUMAN_STAND_MOBILE",      // texting / scrolling
+		"WORLD_HUMAN_SMOKING",              // lighting up
+		"WORLD_HUMAN_STAND_MOBILE",         // texting / scrolling
 		"WORLD_HUMAN_MOBILE_FILM_SHOCKING", // filming something
-		"WORLD_HUMAN_LEANING",           // leaning on wall
-		"WORLD_HUMAN_DRINKING",          // sipping a drink
-		"WORLD_HUMAN_HANG_OUT_STREET",   // hanging out
-		"WORLD_HUMAN_LOOK_AT_SCENERY",   // looking around
-		"WORLD_HUMAN_AA_COFFEE",         // drinking coffee
-		"WORLD_HUMAN_CLIPBOARD",         // checking clipboard
-		"WORLD_HUMAN_CHEERING",          // cheering
-		"WORLD_HUMAN_STRETCHING",        // stretching
+		"WORLD_HUMAN_LEANING",              // leaning on wall
+		"WORLD_HUMAN_DRINKING",             // sipping a drink
+		"WORLD_HUMAN_HANG_OUT_STREET",      // hanging out
+		"WORLD_HUMAN_LOOK_AT_SCENERY",      // looking around
+		"WORLD_HUMAN_AA_COFFEE",            // drinking coffee
+		"WORLD_HUMAN_CLIPBOARD",            // checking clipboard
+		"WORLD_HUMAN_CHEERING",             // cheering
+		"WORLD_HUMAN_STRETCHING",           // stretching
+		"WORLD_HUMAN_AA_SMOKE",             // another smoking variant
+		"WORLD_HUMAN_GUARD_STAND",          // bouncer / standing guard
+		"WORLD_HUMAN_TOURIST_MAP",          // checking map on phone
+		"WORLD_HUMAN_MUSCLE_FLEX",          // flexing (very online-player)
 	};
-	const int ScenCount = 11;
+	const int ScenCount = 15;
 	int idx = RandomInt(0, ScenCount - 1);
 	AI::CLEAR_PED_TASKS(peddy);
 	AI::TASK_START_SCENARIO_IN_PLACE(peddy, (LPSTR)Scenarios[idx].c_str(), 0, true);
@@ -3880,6 +3884,14 @@ void ProcessPZ(PlayerBrain* brain)
 			{
 				BlipingBlip(brain);
 
+				// Wanted level awareness: hostile NPCs respond faster when player has stars
+				if (!brain->Friendly && !brain->Follower && !brain->Driver && !brain->Passenger && !brain->TheHacker)
+				{
+					int iWanted = PLAYER::GET_PLAYER_WANTED_LEVEL(ThePlayer);
+					if (iWanted >= 2 && brain->FindPlayer > GameTime + 30000)
+						brain->FindPlayer = GameTime + RandomInt(5000, 15000);
+				}
+
 				if (InPasiveMode)
 				{
 					if (ENTITY::GET_ENTITY_ALPHA(brain->ThisPed) != 120)
@@ -4671,6 +4683,21 @@ void ProcessPZ(PlayerBrain* brain)
 					}
 					else
 					{
+						// Health-based flee: hostile on-foot NPCs with low HP disengage and run
+						if (!brain->Friendly && !brain->Follower && MySettings.Aggression <= 5)
+						{
+							int iHealth = ENTITY::GET_ENTITY_HEALTH(PlayZero);
+							int iMaxHealth = ENTITY::GET_ENTITY_MAX_HEALTH(PlayZero);
+							if (iHealth > 0 && iHealth < (iMaxHealth / 3) && brain->FindPlayer < GameTime + 5000)
+							{
+								AI::CLEAR_PED_TASKS(PlayZero);
+								AI::TASK_SMART_FLEE_PED(PlayZero, ThePlayer, 200.0f, -1, false, false);
+								PED::SET_PED_KEEP_TASK(PlayZero, true);
+								brain->ThisEnemy = NULL;
+								brain->FindPlayer = GameTime + RandomInt(20000, 40000);
+							}
+						}
+
 						if (brain->FindPlayer < GameTime)
 						{
 							brain->FindPlayer = GameTime + 1000;
