@@ -1513,23 +1513,18 @@ void AddSenario(Ped peddy, const std::string& senareo, Vector4 pos, bool sitDown
 void DoAmbientScenario(Ped peddy)
 {
 	static const std::string Scenarios[] = {
-		"WORLD_HUMAN_SMOKING",              // lighting up
-		"WORLD_HUMAN_STAND_MOBILE",         // texting / scrolling
-		"WORLD_HUMAN_MOBILE_FILM_SHOCKING", // filming something
-		"WORLD_HUMAN_LEANING",              // leaning on wall
-		"WORLD_HUMAN_DRINKING",             // sipping a drink
-		"WORLD_HUMAN_HANG_OUT_STREET",      // hanging out
-		"WORLD_HUMAN_LOOK_AT_SCENERY",      // looking around
-		"WORLD_HUMAN_AA_COFFEE",            // drinking coffee
-		"WORLD_HUMAN_CLIPBOARD",            // checking clipboard
-		"WORLD_HUMAN_CHEERING",             // cheering
-		"WORLD_HUMAN_STRETCHING",           // stretching
-		"WORLD_HUMAN_AA_SMOKE",             // another smoking variant
-		"WORLD_HUMAN_GUARD_STAND",          // bouncer / standing guard
-		"WORLD_HUMAN_TOURIST_MAP",          // checking map on phone
-		"WORLD_HUMAN_MUSCLE_FLEX",          // flexing (very online-player)
+		"WORLD_HUMAN_SMOKING",         // lighting up
+		"WORLD_HUMAN_STAND_MOBILE",    // texting / scrolling
+		"WORLD_HUMAN_LEANING",         // leaning on wall
+		"WORLD_HUMAN_DRINKING",        // sipping a drink
+		"WORLD_HUMAN_HANG_OUT_STREET", // hanging out
+		"WORLD_HUMAN_LOOK_AT_SCENERY", // looking around
+		"WORLD_HUMAN_CLIPBOARD",       // checking clipboard
+		"WORLD_HUMAN_STRETCHING",      // stretching
+		"WORLD_HUMAN_AA_SMOKE",        // smoking variant
+		"WORLD_HUMAN_GUARD_STAND",     // bouncer / standing guard
 	};
-	const int ScenCount = 15;
+	const int ScenCount = 10;
 	int idx = RandomInt(0, ScenCount - 1);
 	AI::CLEAR_PED_TASKS(peddy);
 	AI::TASK_START_SCENARIO_IN_PLACE(peddy, (LPSTR)Scenarios[idx].c_str(), 0, true);
@@ -2579,7 +2574,10 @@ Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 					if (RandomInt(0, 1) == 0)
 						DoAmbientScenario(ThisPed);
 					else
+					{
 						WalkHere(ThisPed, FindingShops(ThisPed));
+						brain->ShopTimer = InGameTime() + RandomInt(20000, 45000);
+					}
 				}
 
 				if (brain->Oppressor != NULL)
@@ -3944,7 +3942,10 @@ void ProcessPZ(PlayerBrain* brain)
 						{
 							brain->ThisEnemy = FindAFight(brain);
 							if (brain->ThisEnemy == NULL)
+							{
 								WalkHere(PlayZero, FindingShops(PlayZero));
+								brain->ShopTimer = GameTime + RandomInt(20000, 45000);
+							}
 							else
 							{
 								brain->FindPlayer = GameTime + RandomInt(25000, 30000);
@@ -4544,6 +4545,13 @@ void ProcessPZ(PlayerBrain* brain)
 									}
 								}
 							}
+							else if (brain->ShopTimer > 0 && GameTime > brain->ShopTimer)
+							{
+								// NPC has been in shop long enough - give them a new task and reset timer
+								brain->ShopTimer = 0;
+								brain->FindPlayer = GameTime + RandomInt(30000, 60000);
+								DoAmbientScenario(PlayZero);
+							}
 							else if (brain->FindPlayer < GameTime)
 							{
 								brain->FindPlayer = GameTime + 1000;
@@ -4580,6 +4588,7 @@ void ProcessPZ(PlayerBrain* brain)
 												DoAmbientScenario(PlayZero);
 											else
 												WalkHere(PlayZero, FindingShops(PlayZero));
+												brain->ShopTimer = GameTime + RandomInt(20000, 45000);
 										}
 										else
 										{
@@ -4596,6 +4605,7 @@ void ProcessPZ(PlayerBrain* brain)
 													DoAmbientScenario(PlayZero);
 												else
 													WalkHere(PlayZero, FindingShops(PlayZero));
+													brain->ShopTimer = GameTime + RandomInt(20000, 45000);
 											}
 										}
 									}
@@ -4604,6 +4614,7 @@ void ProcessPZ(PlayerBrain* brain)
 								{
 									brain->FindPlayer = GameTime + RandomInt(50000, 100000);
 									WalkHere(PlayZero, FindingShops(PlayZero));
+									brain->ShopTimer = GameTime + RandomInt(20000, 45000);
 								}
 							}
 						}
@@ -4732,6 +4743,7 @@ void ProcessPZ(PlayerBrain* brain)
 										DoAmbientScenario(PlayZero);
 									else
 										WalkHere(PlayZero, FindingShops(PlayZero));
+										brain->ShopTimer = GameTime + RandomInt(20000, 45000);
 								}
 								else
 								{
@@ -4743,6 +4755,7 @@ void ProcessPZ(PlayerBrain* brain)
 											DoAmbientScenario(PlayZero);
 										else
 											WalkHere(PlayZero, FindingShops(PlayZero));
+											brain->ShopTimer = GameTime + RandomInt(20000, 45000);
 									}
 									else
 									{
