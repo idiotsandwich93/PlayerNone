@@ -244,8 +244,8 @@ void SetRelationType(bool friendly)
 		PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, GP_Mental, Gp_Follow);
 		PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, Gp_Follow, GP_Mental);
 
-		PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, GP_Attack, Gp_Friend);
-		PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, Gp_Friend, GP_Attack);
+		PED::SET_RELATIONSHIP_BETWEEN_GROUPS((MySettings.Aggression <= 3) ? 3 : 5, GP_Attack, Gp_Friend);
+		PED::SET_RELATIONSHIP_BETWEEN_GROUPS((MySettings.Aggression <= 3) ? 3 : 5, Gp_Friend, GP_Attack);
 
 		if (MySettings.Aggression > 5)
 		{		
@@ -261,11 +261,11 @@ void SetRelationType(bool friendly)
 			PED::SET_RELATIONSHIP_BETWEEN_GROUPS(3, GP_Attack, GP_Player);
 		}
 
-		PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, GP_Mental, Gp_Friend);
-		PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, Gp_Friend, GP_Mental);
+		PED::SET_RELATIONSHIP_BETWEEN_GROUPS((MySettings.Aggression <= 3) ? 3 : 5, GP_Mental, Gp_Friend);
+		PED::SET_RELATIONSHIP_BETWEEN_GROUPS((MySettings.Aggression <= 3) ? 3 : 5, Gp_Friend, GP_Mental);
 
-		PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, GP_Attack, GP_Mental);
-		PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, GP_Mental, GP_Attack);
+		PED::SET_RELATIONSHIP_BETWEEN_GROUPS((MySettings.Aggression <= 3) ? 3 : 5, GP_Attack, GP_Mental);
+		PED::SET_RELATIONSHIP_BETWEEN_GROUPS((MySettings.Aggression <= 3) ? 3 : 5, GP_Mental, GP_Attack);
 
 		PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, GP_Player, GP_Mental);
 		PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, GP_Mental, GP_Player);
@@ -286,8 +286,8 @@ void SetRelationType(bool friendly)
 		PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, GP_Mental, Gp_Follow);
 		PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, Gp_Follow, GP_Mental);
 
-		PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, GP_Attack, Gp_Friend);
-		PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, Gp_Friend, GP_Attack);
+		PED::SET_RELATIONSHIP_BETWEEN_GROUPS((MySettings.Aggression <= 3) ? 3 : 5, GP_Attack, Gp_Friend);
+		PED::SET_RELATIONSHIP_BETWEEN_GROUPS((MySettings.Aggression <= 3) ? 3 : 5, Gp_Friend, GP_Attack);
 
 		if (MySettings.Aggression > 5)
 		{
@@ -303,11 +303,11 @@ void SetRelationType(bool friendly)
 			PED::SET_RELATIONSHIP_BETWEEN_GROUPS(3, GP_Attack, GP_Player);
 		}
 
-		PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, GP_Mental, Gp_Friend);
-		PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, Gp_Friend, GP_Mental);
+		PED::SET_RELATIONSHIP_BETWEEN_GROUPS((MySettings.Aggression <= 3) ? 3 : 5, GP_Mental, Gp_Friend);
+		PED::SET_RELATIONSHIP_BETWEEN_GROUPS((MySettings.Aggression <= 3) ? 3 : 5, Gp_Friend, GP_Mental);
 
-		PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, GP_Attack, GP_Mental);
-		PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, GP_Mental, GP_Attack);
+		PED::SET_RELATIONSHIP_BETWEEN_GROUPS((MySettings.Aggression <= 3) ? 3 : 5, GP_Attack, GP_Mental);
+		PED::SET_RELATIONSHIP_BETWEEN_GROUPS((MySettings.Aggression <= 3) ? 3 : 5, GP_Mental, GP_Attack);
 
 		PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, GP_Player, GP_Mental);
 		PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, GP_Mental, GP_Player);
@@ -1335,7 +1335,18 @@ int YourGunNum()
 {
 	int iGun = 0;
 
-	if (MySettings.Aggression > 2)
+	if (MySettings.Aggression <= 3)
+	{
+		// Low aggression: mostly unarmed or melee, rarely a light gun
+		int iRoll = RandomInt(1, 10);
+		if (iRoll < 6)
+			iGun = 0;      // 50%: unarmed
+		else if (iRoll < 9)
+			iGun = 1;      // 30%: melee only
+		else
+			iGun = 2;      // 20%: light pistol/PDW/sawnoff only
+	}
+	else if (MySettings.Aggression > 3)
 	{
 		if (MySettings.SpaceWeaps)
 			iGun = RandomInt(2, 10);
@@ -1498,6 +1509,28 @@ void AddSenario(Ped peddy, const std::string& senareo, Vector4 pos, bool sitDown
 {
 	AI::TASK_START_SCENARIO_AT_POSITION(peddy, (LPSTR)senareo.c_str(), pos.X, pos.Y, pos.Z, pos.R, -1, sitDown, true);
 }
+// Ambient idle scenarios: make NPCs feel like real online players
+void DoAmbientScenario(Ped peddy)
+{
+	static const std::string Scenarios[] = {
+		"WORLD_HUMAN_SMOKING",           // lighting up
+		"WORLD_HUMAN_STAND_MOBILE",      // texting / scrolling
+		"WORLD_HUMAN_MOBILE_FILM_SHOCKING", // filming something
+		"WORLD_HUMAN_LEANING",           // leaning on wall
+		"WORLD_HUMAN_DRINKING",          // sipping a drink
+		"WORLD_HUMAN_HANG_OUT_STREET",   // hanging out
+		"WORLD_HUMAN_LOOK_AT_SCENERY",   // looking around
+		"WORLD_HUMAN_AA_COFFEE",         // drinking coffee
+		"WORLD_HUMAN_CLIPBOARD",         // checking clipboard
+		"WORLD_HUMAN_CHEERING",          // cheering
+		"WORLD_HUMAN_STRETCHING",        // stretching
+	};
+	const int ScenCount = 11;
+	int idx = RandomInt(0, ScenCount - 1);
+	AI::CLEAR_PED_TASKS(peddy);
+	AI::TASK_START_SCENARIO_IN_PLACE(peddy, (LPSTR)Scenarios[idx].c_str(), 0, true);
+	PED::SET_PED_KEEP_TASK(peddy, true);
+}
 void FollowPed(Ped target, Ped follower)
 {
 	AI::TASK_FOLLOW_TO_OFFSET_OF_ENTITY(follower, target, 0, 0, 0, 45, -1, 10, 1);
@@ -1558,6 +1591,48 @@ void RunHere(Ped Peddy, Vector4 pos)
 {
 	RunHere(Peddy, NewVector3(pos.X, pos.Y, pos.Z));
 }
+// Real GTA V hotspot locations for FiveM-like driving behavior
+const std::vector<Vector3> PlayerHotspots = {
+	NewVector3(-1391.76f, -590.92f,  30.00f),  // LSIA Airport
+	NewVector3( 414.15f, -1020.33f,  29.35f),  // Legion Square
+	NewVector3(-710.40f,  -939.45f,  19.22f),  // Del Perro Pier
+	NewVector3(1174.60f,  -324.48f,  69.33f),  // Vinewood Hills
+	NewVector3(1109.48f,  -982.25f,  46.42f),  // Rockford Hills
+	NewVector3( -43.85f, -1103.23f,  26.42f),  // Downtown LS
+	NewVector3( 350.19f, -1960.80f,  23.26f),  // Elysian Island
+	NewVector3(-2009.36f,  -50.88f,  18.61f),  // Chumash
+	NewVector3(1702.48f,  4934.50f,  41.80f),  // Paleto Bay
+	NewVector3(-1093.24f, 2705.14f,  18.89f),  // Sandy Shores
+	NewVector3( 177.41f,  3648.50f,  36.00f),  // Grapeseed
+	NewVector3(-269.72f,  -957.50f,  31.22f),  // Little Seoul
+	NewVector3(-2165.62f, 4285.45f,  47.31f),  // Paleto Forest
+	NewVector3(2681.57f,  3476.43f,  55.24f),  // Grand Senora Desert
+	NewVector3(-1216.89f,-1578.56f,   4.61f),  // Vespucci Canals
+	NewVector3(1136.41f,  2126.74f,  42.32f),  // Alamo Sea
+	NewVector3(-3175.97f, 1086.28f,  20.84f),  // Pacific Bluffs
+	NewVector3( -552.49f,  -192.32f, 37.63f),  // Maze Bank Arena
+	NewVector3(   26.07f,  -951.75f, 28.57f),  // Maze Bank Tower
+	NewVector3(-1299.30f, -1128.90f,  6.99f),  // Chumash Beach
+};
+
+void DriveToHotspot(Ped peddy, Vehicle vic)
+{
+	LoggerLight("DriveToHotspot");
+	if (!(bool)PED::IS_PED_IN_ANY_VEHICLE(peddy, 0)) return;
+	if (peddy != VEHICLE::GET_PED_IN_VEHICLE_SEAT(PED::GET_VEHICLE_PED_IS_USING(peddy), -1)) return;
+	int iSpot = LessRandomInt("Hotspot", 0, (int)PlayerHotspots.size() - 1);
+	Vector3 dest = PlayerHotspots[iSpot];
+	float fSpeed = RandomFloat(22.0f, 40.0f);
+	int iDriveStyle = 1074528293;
+	int iRand = LessRandomInt("HotspotStyle", 1, 10);
+	if (iRand > 8) iDriveStyle = 786603;
+	else if (iRand > 6) fSpeed = RandomFloat(15.0f, 25.0f);
+	AI::CLEAR_PED_TASKS(peddy);
+	AI::TASK_VEHICLE_DRIVE_TO_COORD_LONGRANGE(peddy, vic, dest.x, dest.y, dest.z, fSpeed, iDriveStyle, 15.0f);
+	PED::SET_PED_KEEP_TASK(peddy, true);
+	PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(peddy, false);
+}
+
 void DriveAround(Ped peddy)
 {
 	AI::CLEAR_PED_TASKS(peddy);
@@ -1566,8 +1641,13 @@ void DriveAround(Ped peddy)
 		if (peddy == VEHICLE::GET_PED_IN_VEHICLE_SEAT(PED::GET_VEHICLE_PED_IS_USING(peddy), -1))
 		{
 			Vehicle Vic = PED::GET_VEHICLE_PED_IS_IN(peddy, false);
-
-			AI::TASK_VEHICLE_DRIVE_WANDER(peddy, Vic, 25, 262956);
+			int iStyle = 262956;
+			float fSpeed = 25.0f;
+			int iRand = LessRandomInt("DriveWanderStyle", 1, 10);
+			if (iRand > 8) { iStyle = 786603; fSpeed = RandomFloat(35.0f, 55.0f); }
+			else if (iRand > 5) { fSpeed = RandomFloat(22.0f, 32.0f); }
+			else { fSpeed = RandomFloat(12.0f, 22.0f); }
+			AI::TASK_VEHICLE_DRIVE_WANDER(peddy, Vic, fSpeed, iStyle);
 			PED::SET_PED_KEEP_TASK(peddy, true);
 			PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(peddy, true);
 		}
@@ -1776,6 +1856,14 @@ void GreefWar(Ped peddy, Ped victim)
 		AI::CLEAR_PED_TASKS(peddy);
 		PED::SET_PED_FLEE_ATTRIBUTES(peddy, 0, true);
 		PED::SET_PED_COMBAT_ATTRIBUTES(peddy, 46, true);
+
+		if (MySettings.Aggression <= 3)
+		{
+			// Low aggression: NPCs disengage rather than fight to the death
+			PED::SET_PED_COMBAT_ATTRIBUTES(peddy, 52, true);  // flee if not in line of sight
+			PED::SET_PED_COMBAT_ATTRIBUTES(peddy, 5, true);   // can flee
+			PED::SET_PED_FLEE_ATTRIBUTES(peddy, 2, true);     // flee when injured
+		}
 
 		AI::TASK_COMBAT_PED(peddy, victim, 0, 16);
 	}
@@ -2396,6 +2484,8 @@ Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 
 			if (MySettings.Aggression > 5)
 				PED::SET_PED_ACCURACY(ThisPed, MySettings.AccMax);
+			else if (MySettings.Aggression <= 3)
+				PED::SET_PED_ACCURACY(ThisPed, max(5, MySettings.AccMin - 10));
 			else
 				PED::SET_PED_ACCURACY(ThisPed, MySettings.AccMin);
 
@@ -2407,8 +2497,12 @@ Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 			//UI::_0xEE76FF7E6A0166B0(brain->HeadTag, true);
 			//UI::_0xA67F9C46D612B6F1(brain->HeadTag, true);
 
-			if (MySettings.Aggression > 1)
+			if (MySettings.Aggression > 5)
 				PED::SET_PED_COMBAT_ABILITY(ThisPed, 150);
+			else if (MySettings.Aggression > 3)
+				PED::SET_PED_COMBAT_ABILITY(ThisPed, 100);
+			else if (MySettings.Aggression > 1)
+				PED::SET_PED_COMBAT_ABILITY(ThisPed, 50);
 			else
 				PED::SET_PED_COMBAT_ABILITY(ThisPed, 10);
 
@@ -2474,6 +2568,15 @@ Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 					RelGroupMember(brain->ThisPed, GP_Mental);
 				else
 					FightPlayer(brain);
+
+				// Force initial movement for on-foot NPCs to prevent AFK spawning
+				if (!brain->Driver && !brain->Passenger && !brain->Follower)
+				{
+					if (RandomInt(0, 1) == 0)
+						DoAmbientScenario(ThisPed);
+					else
+						WalkHere(ThisPed, FindingShops(ThisPed));
+				}
 
 				if (brain->Oppressor != NULL)
 				{
@@ -3144,7 +3247,7 @@ void CreatePlayer()
 		newBrain.OffRadar = -1;
 	}
 
-	if (LessRandomInt("iBrain02", 1, 10) < 4 || MySettings.Aggression < 3 || newBrain.SessionJumper)
+	if (LessRandomInt("iBrain02", 1, 10) < 4 || MySettings.Aggression < 2 || newBrain.SessionJumper)
 	{
 		LoggerLight("CreatePlayer on foot");
 
@@ -3571,13 +3674,7 @@ int ChatSHat = 0;
 
 void ProcessAfk(AfkPlayer* brain)
 {
-	if (ChatSHat < InGameTime())
-	{
-		ChatSHat = InGameTime() + RandomInt(2000, 12000);
-		if (RandomInt(1, 50) < 15 && ShitTalk.size() < 5)
-			RandomChat(brain->MyName, 2, brain->Nationality);
-	}
-	else if (brain->TheHacker)
+	if (brain->TheHacker)
 	{
 		if (brain->StartTheHack == 0)
 		{
@@ -3750,17 +3847,7 @@ void ProcessPZ(PlayerBrain* brain)
 				if (brain->DeathTime < InGameTime())
 				{
 					LoggerLight("-BringoutDead-");
-					if (MySettings.BackChat)
-					{
-						if (ChatSHat < InGameTime())
-						{
-							ChatSHat = InGameTime() + RandomInt(500, 12000);
-							if (RandomInt(1, 50) < 35 && ShitTalk.size() < 5)
-							{
-								RandomChat(brain->MyName, 5, brain->Nationality);
-							}
-						}
-					}
+
 					brain->DeathSequence = 0;
 					brain->FindPlayer = 0;
 					brain->DeathTime = 0;
@@ -3768,7 +3855,7 @@ void ProcessPZ(PlayerBrain* brain)
 					brain->ThisPed = NULL;
 					brain->YoDeeeed = false;
 
-					if (brain->Killed > RandomInt(8, 22) || MySettings.Aggression < 2)
+					if (brain->Killed > RandomInt(30, 50) || MySettings.Aggression < 2)
 						brain->TimeOn = 0;
 
 					PlayerPedGen(FindPedSpPoint(), brain, false);
@@ -4106,8 +4193,6 @@ void ProcessPZ(PlayerBrain* brain)
 				{
 					if (LessRandomInt("HackReackt", 1, 10) < 3)
 						brain->TimeOn = 0;
-					else
-						RandomChat(brain->MyName, 5, 0);
 					brain->HackReaction = false;
 				}
 				else if (brain->WanBeFriends)
@@ -4169,15 +4254,8 @@ void ProcessPZ(PlayerBrain* brain)
 				}
 				else if (brain->Follower)
 				{
-					if (brain->SessionGreating && MySettings.BackChat)
-					{
-						if (RandomInt(1, 10) < 5)
-						{
-							ChatSHat = GameTime + RandomInt(500, 12000);
-							brain->SessionGreating = false;
-							RandomChat(brain->MyName, 1, brain->Nationality);
-						}
-					}
+					if (brain->SessionGreating)
+						brain->SessionGreating = false;
 
 					if (brain->AtTheParty)
 					{
@@ -4266,15 +4344,6 @@ void ProcessPZ(PlayerBrain* brain)
 				}
 				else if (brain->Friendly)
 				{
-					if (MySettings.BackChat)
-					{
-						if (ChatSHat < GameTime)
-						{
-							ChatSHat = GameTime + RandomInt(500, 12000);
-							if (RandomInt(1, 50) < 15 && ShitTalk.size() < 5)
-								RandomChat(brain->MyName, 2, brain->Nationality);
-						}
-					}
 
 					if ((bool)ENTITY::HAS_ENTITY_BEEN_DAMAGED_BY_ENTITY(PlayZero, ThePlayer, 1) || (bool)PED::IS_PED_IN_COMBAT(PlayZero, ThePlayer) || (bool)PLAYER::IS_PLAYER_FREE_AIMING_AT_ENTITY(ThePlayer, PlayZero))
 					{
@@ -4361,12 +4430,21 @@ void ProcessPZ(PlayerBrain* brain)
 											}
 											else
 											{
-												brain->ThisEnemy = FindAFight(brain);
-												if (brain->ThisEnemy != NULL)
+												// Low aggression: cruise to hotspot instead of fighting from vehicle
+												if (MySettings.Aggression <= 3 && LessRandomInt("FriHotDrive", 1, 10) < 9)
 												{
-													brain->EnemyPos = DistanceTo((Entity)brain->ThisEnemy, PedPos) - 1.0f;
-													PickFight(PlayZero, brain->ThisVeh, brain->ThisEnemy, brain->PrefredVehicle);
-													FightTogether(brain->ThisVeh, brain->ThisEnemy);
+													DriveToHotspot(PlayZero, brain->ThisVeh);
+													brain->FindPlayer = GameTime + 60000;
+												}
+												else
+												{
+													brain->ThisEnemy = FindAFight(brain);
+													if (brain->ThisEnemy != NULL)
+													{
+														brain->EnemyPos = DistanceTo((Entity)brain->ThisEnemy, PedPos) - 1.0f;
+														PickFight(PlayZero, brain->ThisVeh, brain->ThisEnemy, brain->PrefredVehicle);
+														FightTogether(brain->ThisVeh, brain->ThisEnemy);
+													}
 												}
 											}
 										}
@@ -4410,14 +4488,29 @@ void ProcessPZ(PlayerBrain* brain)
 											if (ThisBrian != nullptr)
 												PedDoGetIn(brain->ThisVeh, ThisBrian);
 										}
+										else if (MySettings.Aggression <= 3 && LessRandomInt("FriHotDrive", 1, 10) < 9)
+										{
+											// Aggression 2-3: cruise to a hotspot like a real player
+											DriveToHotspot(PlayZero, brain->ThisVeh);
+											brain->FindPlayer = GameTime + 60000;
+										}
 										else
 										{
-											brain->ThisEnemy = FindAFight(brain);
-											if (brain->ThisEnemy != NULL)
+											// Low aggression: cruise to hotspot instead of fighting from vehicle
+											if (MySettings.Aggression <= 3 && LessRandomInt("FriHotDrive", 1, 10) < 9)
 											{
-												brain->EnemyPos = DistanceTo((Entity)brain->ThisEnemy, PedPos) - 1.0f;
-												PickFight(PlayZero, brain->ThisVeh, brain->ThisEnemy, brain->PrefredVehicle);
-												FightTogether(brain->ThisVeh, brain->ThisEnemy);
+												DriveToHotspot(PlayZero, brain->ThisVeh);
+												brain->FindPlayer = GameTime + 60000;
+											}
+											else
+											{
+												brain->ThisEnemy = FindAFight(brain);
+												if (brain->ThisEnemy != NULL)
+												{
+													brain->EnemyPos = DistanceTo((Entity)brain->ThisEnemy, PedPos) - 1.0f;
+													PickFight(PlayZero, brain->ThisVeh, brain->ThisEnemy, brain->PrefredVehicle);
+													FightTogether(brain->ThisVeh, brain->ThisEnemy);
+												}
 											}
 										}
 									}
@@ -4459,20 +4552,40 @@ void ProcessPZ(PlayerBrain* brain)
 												EasyWayOut(PlayZero);
 											}
 											else
-												brain->TimeOn = 0;
+											{
+												brain->ThisEnemy = NULL;
+												brain->FindPlayer = GameTime + RandomInt(15000, 20000);
+											}
 										}
 									}
 									else
 									{
-										brain->FindPlayer = GameTime + RandomInt(10000, 15000);
-										brain->ThisEnemy = FindAFight(brain);
-										if (brain->ThisEnemy != NULL)
+										// Low aggression: friendly NPCs rarely pick fights on foot
+										if (MySettings.Aggression <= 3 && RandomInt(1, 10) < 9)
 										{
-											brain->EnemyPos = DistanceTo((Entity)brain->ThisEnemy, PedPos) - 1.0f;
-											GreefWar(PlayZero, brain->ThisEnemy);
+											brain->FindPlayer = GameTime + RandomInt(60000, 120000);
+											if (RandomInt(1, 10) < 4)
+												DoAmbientScenario(PlayZero);
+											else
+												WalkHere(PlayZero, FindingShops(PlayZero));
 										}
 										else
-											WalkHere(PlayZero, FindingShops(PlayZero));
+										{
+											brain->FindPlayer = GameTime + RandomInt(60000, 120000);
+											brain->ThisEnemy = FindAFight(brain);
+											if (brain->ThisEnemy != NULL)
+											{
+												brain->EnemyPos = DistanceTo((Entity)brain->ThisEnemy, PedPos) - 1.0f;
+												GreefWar(PlayZero, brain->ThisEnemy);
+											}
+											else
+											{
+												if (RandomInt(1, 10) < 4)
+													DoAmbientScenario(PlayZero);
+												else
+													WalkHere(PlayZero, FindingShops(PlayZero));
+											}
+										}
 									}
 								}
 								else
@@ -4486,17 +4599,7 @@ void ProcessPZ(PlayerBrain* brain)
 				}
 				else
 				{
-					if (MySettings.BackChat)
-					{
-						if (ChatSHat < GameTime)
-						{
-							ChatSHat = GameTime + RandomInt(500, 12000);
-							if (RandomInt(1, 50) < 15 && ShitTalk.size() < 5)
-							{
-								RandomChat(brain->MyName, 5, 0);
-							}
-						}
-					}
+
 
 					if (brain->Driver)
 					{
@@ -4528,20 +4631,35 @@ void ProcessPZ(PlayerBrain* brain)
 								if (ThisBrian != nullptr)
 									PedDoGetIn(brain->ThisVeh, ThisBrian);
 							}
+							else if (MySettings.Aggression <= 3 && LessRandomInt("HostHotDrive", 1, 10) < 8)
+							{
+								// Aggression 2-3: cruise to a hotspot before engaging
+								DriveToHotspot(PlayZero, brain->ThisVeh);
+								brain->FindPlayer = GameTime + 50000;
+							}
 							else
 							{
 								if (brain->FindPlayer < GameTime)
 								{
-									brain->ThisEnemy = FindAFight(brain);
-									if (brain->ThisEnemy == NULL)
+									// Low aggression: usually cruise to hotspot instead of fighting
+									if (MySettings.Aggression <= 3 && RandomInt(1, 10) < 8)
 									{
-										brain->ThisEnemy = PLAYER::PLAYER_PED_ID();
-										PickFight(PlayZero, brain->ThisVeh, brain->ThisEnemy, brain->PrefredVehicle);
+										DriveToHotspot(PlayZero, brain->ThisVeh);
+										brain->FindPlayer = GameTime + RandomInt(45000, 90000);
 									}
-									else 
-										PickFight(PlayZero, brain->ThisVeh, brain->ThisEnemy, brain->PrefredVehicle);
+									else
+									{
+										brain->ThisEnemy = FindAFight(brain);
+										if (brain->ThisEnemy == NULL)
+										{
+											brain->ThisEnemy = PLAYER::PLAYER_PED_ID();
+											PickFight(PlayZero, brain->ThisVeh, brain->ThisEnemy, brain->PrefredVehicle);
+										}
+										else 
+											PickFight(PlayZero, brain->ThisVeh, brain->ThisEnemy, brain->PrefredVehicle);
 
-									brain->FindPlayer = GameTime + 5000;
+										brain->FindPlayer = GameTime + RandomInt(30000, 45000);
+									}
 								}
 							}
 						}
@@ -4571,19 +4689,39 @@ void ProcessPZ(PlayerBrain* brain)
 										EasyWayOut(PlayZero);
 									}
 									else
-										brain->TimeOn = 0;
+									{
+										brain->ThisEnemy = NULL;
+										brain->FindPlayer = GameTime + RandomInt(15000, 20000);
+									}
 								}
 							}
 							else
 							{
-								brain->FindPlayer = GameTime + RandomInt(10000, 15000);
-								brain->ThisEnemy = FindAFight(brain);
-								if (brain->ThisEnemy == NULL)
-									WalkHere(PlayZero, FindingShops(PlayZero));
+								// Low aggression: fight rarely, wander most of the time
+								if (MySettings.Aggression <= 3 && RandomInt(1, 10) < 8)
+								{
+									brain->FindPlayer = GameTime + RandomInt(60000, 120000);
+									if (RandomInt(1, 10) < 4)
+										DoAmbientScenario(PlayZero);
+									else
+										WalkHere(PlayZero, FindingShops(PlayZero));
+								}
 								else
 								{
-									brain->EnemyPos = DistanceTo((Entity)brain->ThisEnemy, PedPos) - 1.0f;
-									GreefWar(PlayZero, brain->ThisEnemy);
+									brain->FindPlayer = GameTime + RandomInt(60000, 120000);
+									brain->ThisEnemy = FindAFight(brain);
+									if (brain->ThisEnemy == NULL)
+									{
+										if (RandomInt(1, 10) < 4)
+											DoAmbientScenario(PlayZero);
+										else
+											WalkHere(PlayZero, FindingShops(PlayZero));
+									}
+									else
+									{
+										brain->EnemyPos = DistanceTo((Entity)brain->ThisEnemy, PedPos) - 1.0f;
+										GreefWar(PlayZero, brain->ThisEnemy);
+									}
 								}
 							}
 						}
