@@ -53,13 +53,15 @@ Any of these will work.
 <b>Change Log</b>
 ==*==*==*==*==*==*==*==
 
-<u>Fork Changes (v2 - v8) — idiotsandwich93</u>
+<u>Fork Changes (v2 - v9) — idiotsandwich93</u>
 <ul>
 
-    <b>-- NPC Behaviour & AFK Fix (v8) --</b>
+    <b>-- NPC Behaviour, AFK & Shop Fix (v8 / v9) --</b>
 
-    <li>Added <code>DoAmbientScenario()</code> — picks randomly from 5 idle animations (smoking, phone scrolling, filming, leaning, drinking) to give on-foot NPCs something to do.</li>
-    <li>Fixed AFK spawning: all on-foot NPCs now immediately receive a task on spawn — either a random ambient scenario or a WalkHere to a nearby location (50/50 chance). Previously they would stand still indefinitely.</li>
+    <li>Added <code>DoAmbientScenario()</code> — picks randomly from 10 confirmed safe idle animations (smoking, phone, leaning, drinking, etc.) to give on-foot NPCs something to do.</li>
+    <li>Fixed AFK spawning (v8): all on-foot NPCs now immediately receive a task on spawn — either a random ambient scenario or a WalkHere to a nearby location (50/50 chance). Previously they would stand still indefinitely.</li>
+    <li>Fixed shop AFK (v9): added <code>ShopTimer</code> to <code>PlayerBrain</code> — NPCs now leave shops after 20–45 seconds and receive a new ambient task, instead of standing idle until the next AI cycle.</li>
+    <li>Fixed t-poses (v9): removed 5 scenario strings that caused t-pose animations (<code>MOBILE_FILM_SHOCKING</code>, <code>AA_COFFEE</code>, <code>MUSCLE_FLEX</code>, <code>CHEERING</code>, <code>TOURIST_MAP</code>).</li>
     <li>Same idle-forcing logic applied inside the AI tick loop so on-foot NPCs that finish a task don't go AFK mid-session either.</li>
     <li>Added <code>FollowPed()</code> helper for cleaner follower task assignment.</li>
     <li>Added <code>GreefWar()</code> for NPC-vs-NPC combat task assignment.</li>
