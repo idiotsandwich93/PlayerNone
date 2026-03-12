@@ -649,7 +649,7 @@ namespace PZData
 		"Debug Mode",
 		"Toggle the use of a log file that records functions and there states for solving bugs in the code.",
 		"Playerz Count",
-		"Set the number of players in session from 5 - 30.",
+		"Set the number of players in session from 5 - 50. (30 or below recommended for best performance)",
 		"Air Vehicles",
 		"Set the number of air vehicles allowed in session.",
 		"Playerz Join Time Min",
@@ -1116,14 +1116,36 @@ namespace PZData
 	};
 	inline const std::vector<std::string> sListNumbers = {
 		"0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
+	// Core gamertag word bank — what the name is built around
 	inline const std::vector<std::string> sListVowls = {
-		"ay", "ee", "igh", "ow", "oo", "or", "air", "ir", "ou", "oy", "ai", "ea", "ie", "ew", "ur", "ow", "oi", "ire", "ear", "ure", "tion", "ey", "ore", "ere", "oor" };
+		// OG GTA Online types
+		"Sniper", "Ghost", "Rogue", "Savage", "Reaper", "Phantom", "Shadow",
+		"Bandit", "Outlaw", "Viper", "Blaze", "Rage", "Fury", "Storm",
+		"Gunner", "Hunter", "Raider", "Clutch", "Drifter", "Trigger",
+		// FiveM RP / street types
+		"Loc", "Cripz", "Primo", "Cartel", "Jefe", "Sosa", "Draco",
+		"Capo", "Vato", "Lucky", "Tyson", "Kane", "Trey", "Loco",
+		"Niko", "Roman", "Dimitri", "Ray", "Tone", "Dre",
+		// Common online usernames
+		"Ace", "Cruz", "King", "Duke", "Chase", "Cole", "Jax",
+		"Max", "Zane", "Rio", "Nova", "Dash", "Flex", "Apex",
+		"Luca", "Dante", "Rico", "Manny", "Diego", "Marco",
+		// Casual / streamer style
+		"Clutch", "Crispy", "Lowkey", "Chill", "Slick", "Smooth",
+		"Baller", "Grinder", "Stealth", "Drip", "Wave", "Vibe" };
+	// Number-style suffixes
 	inline const std::vector<std::string> sListPadding = {
-		"TyHrd", "Luzz", "Killz" };
+		"69", "420", "99", "100", "47", "77", "007", "23", "10", "21",
+		"3", "7", "00", "1", "4", "360", "2k", "4k", "gg" };
+	// Text-style suffixes
 	inline const std::vector<std::string> sListPostfix = {
-		"X", "-", "^", "*", "#", "$" };
+		"Xx", "YT", "_TV", "_HD", "GG", "_Jr", "_Pro", "_Real",
+		"RL", "_OG", "xD", "_LSC", "_GTA", "_RP", "FiveM" };
+	// Prefixes — empty strings weighted so many names have no prefix
 	inline const std::vector<std::string> sListOpeniLet = {
-		"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z" };
+		"", "", "", "", "", "xX", "iAm", "The", "Real", "lil",
+		"Dark", "Boss", "Mr", "El", "ii", "Im", "Yo", "Its",
+		"Lil", "Big", "OG", "Young", "Tha" };
 
 	inline const std::vector<std::string> ControlSym = {
 		" ~INPUT_NEXT_CAMERA~ ",//V~ ");//BACK
@@ -15792,7 +15814,31 @@ namespace PZData
 		PZClass::Vector4(1320.138f, 4329.853f, 38.14414f, 171.3446f),
 		PZClass::Vector4(1145.128f, 4302.409f, 31.21761f, 169.68f),
 		PZClass::Vector4(709.0751f, 4184.547f, 40.70724f, 34.69099f),
-		PZClass::Vector4(319.119f, 4249.865f, 38.60529f, 198.9028f)
+		PZClass::Vector4(319.119f, 4249.865f, 38.60529f, 198.9028f),
+		// Grapeseed additions (v12)
+		PZClass::Vector4(1710.0f, 4935.0f, 42.1f, 180.0f),
+		PZClass::Vector4(1708.0f, 4905.0f, 42.1f, 180.0f),
+		PZClass::Vector4(1706.0f, 4875.0f, 42.0f, 0.0f),
+		PZClass::Vector4(1704.0f, 4845.0f, 42.0f, 0.0f),
+		PZClass::Vector4(1700.0f, 4810.0f, 42.0f, 180.0f),
+		PZClass::Vector4(1698.0f, 4780.0f, 42.0f, 0.0f),
+		PZClass::Vector4(1696.0f, 4748.0f, 42.0f, 180.0f),
+		PZClass::Vector4(1694.0f, 4718.0f, 42.0f, 0.0f),
+		PZClass::Vector4(1750.0f, 4862.0f, 42.0f, 90.0f),
+		PZClass::Vector4(1790.0f, 4858.0f, 42.0f, 270.0f),
+		PZClass::Vector4(1830.0f, 4854.0f, 41.5f, 90.0f),
+		PZClass::Vector4(1870.0f, 4850.0f, 41.0f, 270.0f),
+		PZClass::Vector4(1760.0f, 4780.0f, 42.0f, 90.0f),
+		PZClass::Vector4(1800.0f, 4776.0f, 42.0f, 270.0f),
+		PZClass::Vector4(1840.0f, 4772.0f, 41.5f, 90.0f),
+		PZClass::Vector4(1880.0f, 4768.0f, 41.0f, 270.0f),
+		PZClass::Vector4(1720.0f, 4700.0f, 42.0f, 90.0f),
+		PZClass::Vector4(1760.0f, 4696.0f, 42.0f, 270.0f),
+		PZClass::Vector4(1800.0f, 4692.0f, 41.5f, 90.0f),
+		PZClass::Vector4(1840.0f, 4688.0f, 41.0f, 270.0f),
+		PZClass::Vector4(1640.0f, 4916.0f, 42.1f, 0.0f),
+		PZClass::Vector4(1638.0f, 4960.0f, 42.1f, 0.0f),
+		PZClass::Vector4(1636.0f, 5000.0f, 42.0f, 180.0f)
 	};
 	inline const std::vector<PZClass::Vector4> PedDrops15 = {
 		PZClass::Vector4(-1034.798f, 5524.104f, 2.149669f, 297.9552f),
@@ -16007,7 +16053,39 @@ namespace PZData
 		PZClass::Vector4(291.5666f, 6515.816f, 29.77631f, 240.3053f),
 		PZClass::Vector4(545.1332f, 6512.576f, 29.8747f, 354.2521f),
 		PZClass::Vector4(447.8288f, 6537.815f, 27.5869f, 205.2203f),
-		PZClass::Vector4(509.6346f, 6512.681f, 29.83241f, 358.1497f)
+		PZClass::Vector4(509.6346f, 6512.681f, 29.83241f, 358.1497f),
+		// North Blaine / Procopio expansions (v12)
+		PZClass::Vector4(210.0f, 6530.0f, 31.0f, 90.0f),
+		PZClass::Vector4(165.0f, 6535.0f, 31.2f, 270.0f),
+		PZClass::Vector4(118.0f, 6540.0f, 31.4f, 90.0f),
+		PZClass::Vector4(70.0f, 6546.0f, 31.5f, 270.0f),
+		PZClass::Vector4(20.0f, 6552.0f, 31.7f, 90.0f),
+		PZClass::Vector4(-30.0f, 6558.0f, 31.9f, 270.0f),
+		PZClass::Vector4(-80.0f, 6564.0f, 32.0f, 90.0f),
+		PZClass::Vector4(-130.0f, 6570.0f, 32.0f, 270.0f),
+		PZClass::Vector4(-190.0f, 6576.0f, 31.8f, 90.0f),
+		PZClass::Vector4(260.0f, 6525.0f, 30.8f, 0.0f),
+		PZClass::Vector4(255.0f, 6570.0f, 30.6f, 180.0f),
+		PZClass::Vector4(250.0f, 6610.0f, 30.4f, 0.0f),
+		PZClass::Vector4(100.0f, 6600.0f, 31.3f, 180.0f),
+		PZClass::Vector4(55.0f, 6650.0f, 2.5f, 90.0f),
+		PZClass::Vector4(90.0f, 6660.0f, 2.4f, 270.0f),
+		PZClass::Vector4(130.0f, 6670.0f, 2.3f, 90.0f),
+		PZClass::Vector4(170.0f, 6680.0f, 2.2f, 270.0f),
+		PZClass::Vector4(700.0f, 6478.0f, 27.5f, 90.0f),
+		PZClass::Vector4(740.0f, 6476.0f, 27.4f, 270.0f),
+		PZClass::Vector4(780.0f, 6474.0f, 27.3f, 90.0f),
+		PZClass::Vector4(840.0f, 6472.0f, 27.2f, 270.0f),
+		PZClass::Vector4(900.0f, 6470.0f, 27.0f, 90.0f),
+		PZClass::Vector4(960.0f, 6468.0f, 26.8f, 270.0f),
+		PZClass::Vector4(1020.0f, 6466.0f, 26.5f, 90.0f),
+		PZClass::Vector4(1080.0f, 6464.0f, 26.2f, 270.0f),
+		PZClass::Vector4(1140.0f, 6462.0f, 25.9f, 90.0f),
+		PZClass::Vector4(1200.0f, 6460.0f, 25.6f, 270.0f),
+		PZClass::Vector4(1260.0f, 6430.0f, 24.8f, 180.0f),
+		PZClass::Vector4(1300.0f, 6390.0f, 24.0f, 0.0f),
+		PZClass::Vector4(1340.0f, 6370.0f, 23.5f, 90.0f),
+		PZClass::Vector4(1380.0f, 6368.0f, 23.4f, 270.0f)
 	};
 
 	inline const std::vector<PZClass::Vector4> VehDrops01 = {
@@ -19968,7 +20046,34 @@ namespace PZData
 		PZClass::Vector4(524.354f, 4271.012f, 52.70568f, 56.0949f),
 		PZClass::Vector4(419.4806f, 4377.535f, 62.52106f, 55.00033f),
 		PZClass::Vector4(362.441f, 4467.424f, 62.26536f, 215.8902f),
-		PZClass::Vector4(391.6761f, 4407.147f, 61.88138f, 204.2727f)
+		PZClass::Vector4(391.6761f, 4407.147f, 61.88138f, 204.2727f),
+		// Grapeseed road network additions (v12)
+		PZClass::Vector4(1700.0f, 4938.0f, 42.1f, 180.0f),
+		PZClass::Vector4(1700.0f, 4900.0f, 42.0f, 180.0f),
+		PZClass::Vector4(1700.0f, 4862.0f, 42.0f, 0.0f),
+		PZClass::Vector4(1700.0f, 4824.0f, 42.0f, 0.0f),
+		PZClass::Vector4(1700.0f, 4786.0f, 42.0f, 180.0f),
+		PZClass::Vector4(1700.0f, 4748.0f, 42.0f, 180.0f),
+		PZClass::Vector4(1700.0f, 4712.0f, 42.0f, 0.0f),
+		PZClass::Vector4(1740.0f, 4712.0f, 42.0f, 90.0f),
+		PZClass::Vector4(1780.0f, 4712.0f, 41.8f, 90.0f),
+		PZClass::Vector4(1820.0f, 4712.0f, 41.5f, 90.0f),
+		PZClass::Vector4(1860.0f, 4712.0f, 41.2f, 90.0f),
+		PZClass::Vector4(1740.0f, 4830.0f, 42.0f, 90.0f),
+		PZClass::Vector4(1780.0f, 4828.0f, 42.0f, 270.0f),
+		PZClass::Vector4(1820.0f, 4826.0f, 41.8f, 90.0f),
+		PZClass::Vector4(1860.0f, 4824.0f, 41.5f, 270.0f),
+		PZClass::Vector4(1900.0f, 4822.0f, 41.2f, 90.0f),
+		PZClass::Vector4(1644.0f, 4950.0f, 42.1f, 0.0f),
+		PZClass::Vector4(1644.0f, 4990.0f, 42.1f, 0.0f),
+		PZClass::Vector4(1642.0f, 5030.0f, 42.0f, 180.0f),
+		PZClass::Vector4(1820.0f, 4580.0f, 38.5f, 180.0f),
+		PZClass::Vector4(1822.0f, 4540.0f, 37.5f, 180.0f),
+		PZClass::Vector4(1824.0f, 4500.0f, 36.5f, 0.0f),
+		PZClass::Vector4(1826.0f, 4460.0f, 35.5f, 0.0f),
+		PZClass::Vector4(1828.0f, 4420.0f, 34.5f, 180.0f),
+		PZClass::Vector4(1830.0f, 4380.0f, 33.8f, 180.0f),
+		PZClass::Vector4(1832.0f, 4340.0f, 33.2f, 0.0f)
 	};
 	inline const std::vector<PZClass::Vector4> VehDrops15 = {
 		PZClass::Vector4(-1106.932f, 5321.004f, 48.63477f, 113.0274f),
@@ -20156,6 +20261,27 @@ namespace PZData
 		PZClass::Vector4(367.3695f, 6577.49f, 27.7935f, 88.2468f),
 		PZClass::Vector4(280.2722f, 6576.208f, 29.91018f, 94.32209f),
 		PZClass::Vector4(416.0725f, 6564.2f, 26.84405f, 265.4334f),
-		PZClass::Vector4(446.2416f, 6560.968f, 26.5225f, 262.5039f)
+		PZClass::Vector4(446.2416f, 6560.968f, 26.5225f, 262.5039f),
+		// Route 1 west of Procopio — Paleto to Procopio connector (v12)
+		PZClass::Vector4(242.0f, 6535.0f, 30.5f, 80.0f),
+		PZClass::Vector4(192.0f, 6534.0f, 30.8f, 260.0f),
+		PZClass::Vector4(142.0f, 6533.0f, 31.1f, 80.0f),
+		PZClass::Vector4(92.0f, 6534.0f, 31.3f, 260.0f),
+		PZClass::Vector4(42.0f, 6535.0f, 31.5f, 80.0f),
+		PZClass::Vector4(-10.0f, 6537.0f, 31.6f, 260.0f),
+		PZClass::Vector4(-62.0f, 6540.0f, 31.7f, 80.0f),
+		PZClass::Vector4(-115.0f, 6543.0f, 31.8f, 260.0f),
+		PZClass::Vector4(-168.0f, 6547.0f, 31.8f, 80.0f),
+		PZClass::Vector4(-220.0f, 6551.0f, 31.7f, 260.0f),
+		PZClass::Vector4(-275.0f, 6555.0f, 31.6f, 80.0f),
+		PZClass::Vector4(-325.0f, 6558.0f, 31.5f, 260.0f),
+		PZClass::Vector4(1100.0f, 6472.0f, 25.9f, 260.0f),
+		PZClass::Vector4(1050.0f, 6473.0f, 26.1f, 80.0f),
+		PZClass::Vector4(990.0f, 6474.0f, 26.4f, 260.0f),
+		PZClass::Vector4(930.0f, 6475.0f, 26.7f, 80.0f),
+		PZClass::Vector4(870.0f, 6476.0f, 27.0f, 260.0f),
+		PZClass::Vector4(810.0f, 6477.0f, 27.2f, 80.0f),
+		PZClass::Vector4(750.0f, 6478.0f, 27.4f, 260.0f),
+		PZClass::Vector4(690.0f, 6479.0f, 27.5f, 80.0f)
 	};
 }

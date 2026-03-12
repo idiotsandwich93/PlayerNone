@@ -1,4 +1,4 @@
-<u> Player Zero </u>
+<u> Player Zero++ </u>
 
 Player zero brings all the toxic waste from online sessions and dumps it into story mode...
 Features
@@ -53,38 +53,63 @@ Any of these will work.
 <b>Change Log</b>
 ==*==*==*==*==*==*==*==
 
-<u>Fork Changes (v2 - v9) — idiotsandwich93</u>
+<u>Fork Changes — idiotsandwich93</u>
 <ul>
 
-    <b>-- NPC Behaviour, AFK & Shop Fix (v8 / v9) --</b>
+    <b>-- v12: Blaine County Coverage + Player Count Increase --</b>
+    <li>Added 23 Grapeseed pedestrian spawn points (<code>PedDrops14</code>) covering Grapeseed Ave, east farm roads, and the southern connector to Sandy Shores. Previously only 15 entries existed for this entire area.</li>
+    <li>Added 26 Grapeseed vehicle road paths (<code>VehDrops14</code>) covering the full Grapeseed Ave north-south corridor, east farm grid, and Route 68 southern approach — increasing coverage from 10 to 36 entries.</li>
+    <li>Added 31 north Blaine / Procopio pedestrian entries (<code>PedDrops16</code>) covering Route 1 west (Paleto → Procopio connector), Braddock Pass area, and additional Procopio Promenade positions — nearly doubling the previous 33-entry list.</li>
+    <li>Added 21 vehicle road entries to <code>VehDrops16</code> covering Route 1 driving paths from Paleto Bay east all the way to the existing Procopio coverage, filling the dead zone between the two regions.</li>
+    <li>Raised max player count slider cap from <b>30 → 50</b>. Updated in-menu description to note 30 or below is recommended for best performance. The cap is now a user choice rather than a hard limit.</li>
 
-    <li>Added <code>DoAmbientScenario()</code> — picks randomly from 10 confirmed safe idle animations (smoking, phone, leaning, drinking, etc.) to give on-foot NPCs something to do.</li>
-    <li>Fixed AFK spawning (v8): all on-foot NPCs now immediately receive a task on spawn — either a random ambient scenario or a WalkHere to a nearby location (50/50 chance). Previously they would stand still indefinitely.</li>
-    <li>Fixed shop AFK (v9): added <code>ShopTimer</code> to <code>PlayerBrain</code> — NPCs now leave shops after 20–45 seconds and receive a new ambient task, instead of standing idle until the next AI cycle.</li>
-    <li>Fixed t-poses (v9): removed 5 scenario strings that caused t-pose animations (<code>MOBILE_FILM_SHOCKING</code>, <code>AA_COFFEE</code>, <code>MUSCLE_FLEX</code>, <code>CHEERING</code>, <code>TOURIST_MAP</code>).</li>
-    <li>Same idle-forcing logic applied inside the AI tick loop so on-foot NPCs that finish a task don't go AFK mid-session either.</li>
+    <b>-- v11: Map-Wide NPC Spawning + FiveM-Style Identity Overhaul --</b>
+    <li>Rewrote <code>FindPedSpPoint()</code> — on-foot NPCs now spawn in a randomly selected region from all 16 <code>SanLoocIndex</code> map regions instead of always clustering 30–60 units from the player. NPCs now scatter across the entire map like a real populated server, appearing in Sandy Shores, Grapeseed, Paleto, and rural Blaine County even when the player is in Los Santos.</li>
+    <li>Vehicle spawning intentionally left unchanged — vehicles still spawn near the player for performance and gameplay reasons.</li>
+    <li>Fixed <code>Vector4</code> default constructor build error in <code>PZSys.cpp</code> introduced by the spawn rewrite (<code>Vector4 Pos;</code> → <code>Vector4 Pos(0.0f, 0.0f, 0.0f, 0.0f);</code>).</li>
+    <li>Expanded name generation word banks in <code>PZSys.h</code> with FiveM/RP-server style gamertags. Added 70+ new name fragments across four lists: prefixes (<code>sListOpeniLet</code>), core words (<code>sListVowls</code>), numeric suffixes (<code>sListPadding</code>), and postfixes (<code>sListPostfix</code>). Generated names now read like real online gamertags (e.g. <code>xSniper99</code>, <code>DarkReaperYT</code>, <code>LilGhostGG</code>).</li>
+    <li>Renamed all 7 pre-built contact <code>.ini</code> files from phonetic-syllable placeholders to FiveM-style gamertags:
+        <ul>
+            <li>Deeea175 → GhostXx</li>
+            <li>Eeyie → DrifterGG</li>
+            <li>Goy → BlazeTV</li>
+            <li>Louay → xSniper99</li>
+            <li>Nireai258 → RavenPro</li>
+            <li>Pir → ReaperXx</li>
+            <li>Zaiore454 → ShadowYT</li>
+        </ul>
+    </li>
+    <li>Updated all <code>PlayersName</code> and <code>PlayersId</code> fields inside each contact file to match the new names.</li>
+    <li>Removed <b>40+ unrealistic vehicles</b> from <code>StandardRoadVehicles.ini</code>: SCRAMJET, VIGILANTE, DELUXO, STROMBERG, TOREADOR, VOLTIC2, BRICKADE, SLAMTRUCK, WASTLNDR, MARSHALL, BRUISER/BRUTUS/MONSTER series, ZR380 variants, arena war DOMINATOR/IMPALER/IMPERATOR/SLAMVAN variants, RUINER2/4, ZHABA, WINKY, CERBERUS series, DEATHBIKE series, SANCTUS, SHOTARO, and duplicate entries. Kept all standard sports cars, muscle cars, sedans, SUVs, vans, motorcycles, and utility trucks.</li>
+    <li>Reduced <code>WeaponisedRoadVehicles.ini</code> from 18 entries to 2 (LIMO2 and NIGHTSHARK only). Removed INSURGENT variants, CARACARA, MENACER, TECHNICAL variants, SCARAB variants, APC, HALFTRACK, RIOT2, RHINO, and KHANJALI.</li>
+    <li>Removed the Halloween Arena War outfit block — the <code>else if (ItHalloween)</code> branch applying <code>MaleArenaWarSpace_Horror</code> / <code>FemaleArenaWarSpace_Horror</code> outfits was deleted. NPCs now fall through to regular <code>OnlineDress()</code> during Halloween instead of wearing space-horror costumes.</li>
+    <li>Fixed Los Santos RED compatibility — changed <code>AllowMissionPedsToInteract</code> from <code>false</code> to <code>true</code> in the LSR <code>Settings.xml</code> so PlayerZero++ NPCs can be interacted with by the LSR dialogue system.</li>
+
+    <b>-- v9 / v10: Shop AFK Fix + T-Pose Fix --</b>
+    <li>Fixed shop AFK (v9): added <code>ShopTimer</code> field to <code>PlayerBrain</code> — NPCs now leave shops after 20–45 seconds and receive a new ambient task, instead of standing idle indefinitely once they walk into a store.</li>
+    <li>Fixed t-poses (v9): removed 5 scenario strings from <code>DoAmbientScenario()</code> that caused the NPC to freeze in a T-pose: <code>MOBILE_FILM_SHOCKING</code>, <code>AA_COFFEE</code>, <code>MUSCLE_FLEX</code>, <code>CHEERING</code>, <code>TOURIST_MAP</code>. Retained 10 confirmed-safe scenario strings.</li>
+
+    <b>-- v8: AFK Spawn Fix --</b>
+    <li>Added <code>DoAmbientScenario()</code> — picks randomly from 10 confirmed safe idle animations (smoking, phone, leaning, drinking, etc.) to give on-foot NPCs a visible activity.</li>
+    <li>Fixed AFK spawning: all non-driver, non-passenger, non-follower NPCs now immediately receive a task on spawn — either a random ambient scenario or a <code>WalkHere()</code> to a nearby shop or location (50/50 chance). Previously they would stand still indefinitely after spawning.</li>
+    <li>Same idle-forcing logic applied inside the AI tick loop so on-foot NPCs that finish a task don't go AFK mid-session.</li>
     <li>Added <code>FollowPed()</code> helper for cleaner follower task assignment.</li>
     <li>Added <code>GreefWar()</code> for NPC-vs-NPC combat task assignment.</li>
     <li>Overloaded <code>WalkHere()</code> to accept both <code>Vector3</code> and <code>Vector4</code> so callers don't need to manually unpack coordinates.</li>
 
-    <b>-- Relationship & Aggression System Rework --</b>
-
+    <b>-- v3–v7: Relationship, Aggression & Snow System Rework --</b>
     <li>Added <code>PassiveDontShoot()</code> — sets all NPC group relationships to neutral (0) for passive mode, ensuring NPCs stop firing at the player without needing to clear all tasks.</li>
     <li>Reworked <code>SetRelationType()</code> with aggression-scaled relationship values instead of hardcoded maximums:
         <ul>
-            <li>Attack&lt;&gt;Friend and Attack&lt;&gt;Mental relationships now use value 3 (dislike) when aggression &lt;= 3, and 5 (hate) at higher settings — previously always 5.</li>
-            <li>Friend&lt;&gt;Player hostile relationships (value 2) now only applied when aggression &gt; 5 — previously triggered at aggression &gt; 4, causing unwanted aggression at moderate settings.</li>
+            <li>Attack↔Friend and Attack↔Mental relationships now use value 3 (dislike) when aggression ≤ 3, and 5 (hate) at higher settings — previously always 5.</li>
+            <li>Friend↔Player hostile relationships (value 2) now only applied when aggression > 5 — previously triggered at aggression > 4, causing unwanted aggression at moderate settings.</li>
         </ul>
     </li>
     <li><code>SetRelationType()</code> now validates that relationships were actually applied and retries if not, preventing silent failures on session start.</li>
-
-    <b>-- Snow / Seasonal System --</b>
-
-    <li>Removed inline <code>EnableSnow()</code> from script.cpp — snow toggling now handled externally via <code>V_Functions.asi</code>.</li>
+    <li>Removed inline <code>EnableSnow()</code> from script.cpp — snow toggling is now handled externally via <code>V_Functions.asi</code>.</li>
     <li>Added <code>AccessSnowFallType()</code> and <code>AccessLetItSnowType()</code> — dynamically load and call snow functions from <code>V_Functions.asi</code> at runtime, so the snow system works independently of the main script.</li>
 
-    <b>-- Code Architecture & Cleanup --</b>
-
+    <b>-- v2: Code Architecture & Cleanup --</b>
     <li>Removed global <code>using namespace std</code> — all standard library types now use explicit <code>std::</code> prefix to avoid naming conflicts.</li>
     <li>Corrected namespace casing: <code>PZclass</code> → <code>PZClass</code> throughout.</li>
     <li>Removed unused source files: <code>Materials.h</code>, <code>Win32Native.cpp</code>, <code>Win32Native.h</code>.</li>

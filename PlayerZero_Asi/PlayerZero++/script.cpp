@@ -332,10 +332,10 @@ void LoadinData()
 
 	GP_Player = GetRelationship();
 	FollowMe = PED::GET_PED_GROUP_INDEX(PLAYER::PLAYER_PED_ID());
-	Gp_Friend = AddRelationship("FrendlyNPCs");
-	GP_Attack = AddRelationship("AttackNPCs");
-	Gp_Follow = AddRelationship("FollowerNPCs");
-	GP_Mental = AddRelationship("MentalNPCs");
+	Gp_Friend = AddRelationship("Stranger");
+	GP_Attack = AddRelationship("Hostile");
+	Gp_Follow = AddRelationship("Friend");
+	GP_Mental = AddRelationship("Bystander");
 	LoadLang(MySettings.Pz_Lang);
 
 	std::string Today = TimeDate();
@@ -420,50 +420,23 @@ std::string FindNewName()
 {
 	LoggerLight("FindNewName");
 
-	int iS = LessRandomInt("NameFind01", 0, (int)sListOpeniLet.size() - 1);
-	std::string sName = sListOpeniLet[iS];
+	// prefix (empty ~4/21 of the time so many names have no prefix)
+	std::string sName = sListOpeniLet[LessRandomInt("NameFind01", 0, (int)sListOpeniLet.size() - 1)];
 
-	iS = LessRandomInt("NameFind02", 0, (int)sListVowls.size() - 1);
-	sName += sListVowls[iS];
-	if (LessRandomInt("NameFind03", 0, 10) < 5)
-	{
-		iS = LessRandomInt("NameFind04", 0, (int)sListVowls.size() - 1);
-		sName += sListVowls[iS];
-	}
-	iS = LessRandomInt("NameFind05", 0, 20);
+	// core gamertag word
+	sName += sListVowls[LessRandomInt("NameFind02", 0, (int)sListVowls.size() - 1)];
 
-	if (iS < 3)
-	{
-		if (MySettings.Aggression > 7)
-			sName += sListPostfix[RandomInt(0, (int)sListPostfix.size() - 1)] + sListPadding[RandomInt(0, (int)sListPadding.size() - 1)];
-	}
-	else if (iS < 6)
-	{
-		std::string s = "";
-		for (int i = 0; i < 3; i++)
-			s += sListPostfix[RandomInt(0, (int)sListPostfix.size() - 1)];
+	// suffix style
+	int iStyle = LessRandomInt("NameFind03", 0, 10);
+	if (iStyle < 3)
+		sName += sListPadding[RandomInt(0, (int)sListPadding.size() - 1)];      // e.g. 420, 69, 1337
+	else if (iStyle < 6)
+		sName += sListPostfix[RandomInt(0, (int)sListPostfix.size() - 1)];      // e.g. Xx, _Pro, YT
+	else if (iStyle < 8)
+		sName += sListNumbers[RandomInt(0, (int)sListNumbers.size() - 1)]
+		       + sListNumbers[RandomInt(0, (int)sListNumbers.size() - 1)];      // e.g. 47, 99
+	// else no suffix — name stands alone
 
-		std::string sR = "";
-		int iRev = (int)s.length() - 1;
-		while (iRev > -1)
-		{
-			sR += s[iRev];
-			iRev--;
-		}
-		sName = s + sName + sR;
-	}
-	else if (iS < 10)
-	{
-		sName += sListNumbers[RandomInt(0, (int)sListNumbers.size() - 1)] + sListNumbers[RandomInt(0, (int)sListNumbers.size() - 1)] + sListNumbers[RandomInt(0, (int)sListNumbers.size() - 1)];
-	}
-	else if (iS < 14)
-	{
-		sName += sListNumbers[RandomInt(0, (int)sListNumbers.size() - 1)] + sListNumbers[RandomInt(0, (int)sListNumbers.size() - 1)];
-	}
-	else if (iS < 16)
-	{
-		sName += sListPostfix[RandomInt(0, (int)sListPostfix.size() - 1)] + sListNumbers[RandomInt(0, (int)sListNumbers.size() - 1)];
-	}
 	return sName;
 }
 std::string SillyNameList()
@@ -725,7 +698,7 @@ ClothBank NewClothBank()
 		std::string Model = "mp_m_freemode_01";
 		ClothX Cothing = GetCloths(true);
 		HairSets MyHair = MHairsets[LessRandomInt("MCBank02", 0, (int)MHairsets.size() - 1)];
-		return ClothBank(SillyNameList(), Model, Cothing, AddFace(Male), Male, MyHair, RandomInt(1, 61), RandomInt(1, 61), RandomInt(0, 10), AddOverLay(Male), AddRandTats(Male));
+		return ClothBank(SillyNameList(), Model, Cothing, AddFace(Male), Male, MyHair, RandomInt(0, 13), RandomInt(0, 13), RandomInt(0, 5), AddOverLay(Male), AddRandTats(Male));
 	}
 	else
 	{
@@ -733,7 +706,7 @@ ClothBank NewClothBank()
 		std::string Model = "mp_f_freemode_01";
 		ClothX Cothing = GetCloths(false);
 		HairSets MyHair = FHairsets[LessRandomInt("FCBank02", 0, (int)FHairsets.size() - 1)];
-		return ClothBank(SillyNameList(), Model, Cothing, AddFace(Male), Male, MyHair, RandomInt(1, 61), RandomInt(1, 61), RandomInt(0, 10), AddOverLay(Male), AddRandTats(Male));
+		return ClothBank(SillyNameList(), Model, Cothing, AddFace(Male), Male, MyHair, RandomInt(0, 13), RandomInt(0, 13), RandomInt(0, 5), AddOverLay(Male), AddRandTats(Male));
 	}
 }
 int OhMyBlip(Vehicle vic)
@@ -2269,21 +2242,6 @@ void OnlineFaces(Ped peddy, ClothBank* clothBankClass)
 		else
 		{
 			ClothX Outfit = XmasOut_F[LessRandomInt("Crimb01", 0, (int)XmasOut_F.size() - 1)];
-			OnlineDress(peddy, &Outfit);
-		}
-	}
-	else if (ItHalloween)
-	{
-		if (clothBankClass->Male)
-		{
-			int iRan = LessRandomInt("Hallow01", 0, 11);
-			ClothX Outfit = ClothX("MaleArena WarSpace_Horror", { 0, 141, 0, 164, 108, 0, 33, 0, 15, 0, 0, 277 }, { 0, iRan, 0, iRan, iRan, 0, 0, 0, 0, 0, 0, iRan }, { -1, -1, -1, -1, -1 }, { -1, -1, -1, -1, -1 });
-			OnlineDress(peddy, &Outfit);
-		}
-		else
-		{
-			int iRan = LessRandomInt("Hallow01", 0, 11);
-			ClothX Outfit = ClothX("FemaleArena WarSpace_Horror", { 21, 141, 0, 205, 115, 0, 34, 0, 6, 0, 0, 290 }, { 0, iRan, 0, iRan, iRan, 0, 0, 0, 0, 0, 0, iRan }, { -1, -1, -1, -1, -1 }, { -1, -1, -1, -1, -1 });
 			OnlineDress(peddy, &Outfit);
 		}
 	}
@@ -5191,7 +5149,7 @@ void Pz_Settings()
 		GVM::GVMFields(PZTranslate[121], PZTranslate[122], &MySettings.FriendlyFire, &FriendlyFireSwitch, true),
 		GVM::GVMFields(PZTranslate[123], PZTranslate[124], &MySettings.BackChat),
 		GVM::GVMFields(PZTranslate[125], PZTranslate[126], &MySettings.Debugger),
-		GVM::GVMFields(PZTranslate[127], PZTranslate[128], &MySettings.MaxPlayers, 5, 30, false, &ChangeWaitTime, true, true),
+		GVM::GVMFields(PZTranslate[127], PZTranslate[128], &MySettings.MaxPlayers, 5, 50, false, &ChangeWaitTime, true, true),
 		GVM::GVMFields(PZTranslate[129], PZTranslate[130], &MySettings.AirVeh, 0, MySettings.MaxPlayers, false),
 		GVM::GVMFields(PZTranslate[131], PZTranslate[132], &MySettings.MinWait, 1, MySettings.MaxWait, false,& ChangeWaitTime, true, true),
 		GVM::GVMFields(PZTranslate[133], PZTranslate[134], &MySettings.MaxWait, MySettings.MinWait, 240, false, &ChangeWaitTime, true, true),

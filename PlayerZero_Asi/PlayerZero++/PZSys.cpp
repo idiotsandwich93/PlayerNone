@@ -875,15 +875,25 @@ namespace PZSys
 	}
 	Vector4 FindPedSpPoint()
 	{
-		Vector4 Pos = InAreaOf(PlayerPosi(), 30.0f, 60.0f);
-		Vector3 PlayPos = NewVector3(Pos.X, Pos.Y, Pos.Z);
+		Vector4 Pos(0.0f, 0.0f, 0.0f, 0.0f);
 
 		if (FileExists(ZeroYank))
+		{
+			Pos = InAreaOf(PlayerPosi(), 30.0f, 60.0f);
 			NearestToo(&Pos, YankSpPoint, LastDropPed, 10.0f);
+		}
 		else if (FileExists(ZeroCayo))
+		{
+			Pos = InAreaOf(PlayerPosi(), 30.0f, 60.0f);
 			NearestToo(&Pos, CayoSpPoint, LastDropPed, 10.0f);
+		}
 		else
-			Pos = PedPlace(PlayPos);
+		{
+			// Pick a random region across the entire map so NPCs scatter like a real server
+			int regionIdx = RandomInt(0, (int)SanLoocIndex.size() - 1);
+			Vector3 RegionCenter = NewVector3(SanLoocIndex[regionIdx].X, SanLoocIndex[regionIdx].Y, SanLoocIndex[regionIdx].Z);
+			Pos = PedPlace(RegionCenter);
+		}
 
 		LastDropPed.push_back(NewVector3(Pos.X, Pos.Y, Pos.Z));
 		if (LastDropPed.size() > 15)
@@ -1998,13 +2008,11 @@ namespace PZSys
 				"ADDER", //>
 				"AUTARCH", //>
 				"BANSHEE2", //><!-- Banshee 900R -->
-				"OPENWHEEL1", //><!-- BR8, should be Open Wheel class -->
 				"BULLET", //>
 				"CHAMPION", //>
 				"CHEETAH", //>
 				"CYCLONE", //>
 				"DEVESTE", //>
-				"OPENWHEEL2", //><!-- DR1, should be Open Wheel class -->
 				"EMERUS", //>
 				"ENTITYXF", //>
 				"ENTITY2", //><!-- Entity XXR -->
@@ -2022,14 +2030,10 @@ namespace PZSys
 				"NERO", //>
 				"NERO2", //><!-- Nero Custom -->
 				"PENETRATOR", //>
-				"FORMULA", //><!-- PR4, should be Open Wheel class -->
-				"FORMULA2", //><!-- R88, should be Open Wheel class -->
 				"LE7B", //><!-- RE-7B -->
 				"REAPER", //>
-				"VOLTIC2", //><!-- Rocket Voltic -->
 				"S80", //>
 				"SC1", //>
-				"SCRAMJET", //>
 				"SULTANRS", //>
 				"T20", //>
 				"TAIPAN", //>
@@ -2043,7 +2047,6 @@ namespace PZSys
 				"TYRUS", //>
 				"VACCA", //>
 				"VAGNER", //>
-				"VIGILANTE", //>
 				"VISIONE", //>
 				"VOLTIC", //>
 				"PROTOTIPO", //><!-- X80 Proto -->
@@ -2104,7 +2107,6 @@ namespace PZSys
 				"FUTO2", //><!-- Futo GTX -->
 				"ZR3802", //><!-- Future Shock ZR380 -->
 				"GB200", //>
-				"BLISTA3", //><!-- Go Go Monkey Blista -->
 				"GROWLER", //>
 				"HOTRING", //>
 				"IMORGON", //>
@@ -2166,10 +2168,6 @@ namespace PZSys
 				"VETO", //><!-- Veto Classic -->
 				"VETO2", //><!-- Veto Modern -->
 				"ZR350", //>
-				"DOMINATOR4", //><!-- Apocalypse Dominator -->
-				"IMPALER2", //><!-- Apocalypse Impaler -->
-				"IMPERATOR", //><!-- Apocalypse Imperator -->
-				"SLAMVAN4", //><!-- Apocalypse Slamvan -->
 				"DUKES3", //><!-- Beater Dukes -->
 				"BLADE", //>
 				"BUCCANEER", //>
@@ -2224,7 +2222,6 @@ namespace PZSys
 				"GAUNTLET2", //><!-- Redwood Gauntlet -->
 				"RUINER", //>
 				"RUINER3", //><!-- Ruiner 2000 wreck -->
-				"RUINER2", //><!-- Ruiner 2000 -->
 				"RUINER4", //><!-- Ruiner ZZ-8 -->
 				"SABREGT", //>
 				"SABREGT2", //><!-- Sabre Turbo Custom -->
@@ -2241,23 +2238,19 @@ namespace PZSys
 				"VIRGO2", //><!-- Virgo Classic Custom -->
 				"VOODOO", //>
 				"VOODOO2", //><!-- Voodoo Custom -->
-				"TAMPA3", //><!-- Weaponized Tampa -->
 				"WEEVIL2", //><!-- Weevil Custom -->
 				"YOSEMITE", //>
 				"Z190", //><!-- 190z -->
-				"ARDENT", //>
 				"CASCO", //>
 				"CHEBUREK", //>
 				"CHEETAH2", //><!-- Cheetah Classic -->
 				"COQUETTE2", //><!-- Coquette Classic -->
-				"DELUXO", //>
 				"DYNASTY", //>
 				"FAGALOA", //>
-				"BTYPE2", //><!-- Fränken Stange -->
+				"BTYPE2", //><!-- Frï¿½nken Stange -->
 				"GT500", //>
 				"INFERNUS2", //><!-- Infernus Classic -->
 				"JB700", //>
-				"JB7002", //><!-- JB 700W -->
 				"MAMBA", //>
 				"MANANA", //>
 				"MICHELLI", //>
@@ -2275,9 +2268,7 @@ namespace PZSys
 				"STINGER", //>
 				"STINGERGT", //>
 				"FELTZER3", //><!-- Stirling GT -->
-				"STROMBERG", //>
 				"SWINGER", //>
-				"TOREADOR", //>
 				"TORERO", //>
 				"TORNADO", //>
 				"TORNADO2", //><!-- Tornado Cabrio -->
