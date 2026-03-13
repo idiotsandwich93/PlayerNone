@@ -67,6 +67,39 @@ Change Log
 ---- Fork Changes by idiotsandwich93 ----
 
 
+-- v14: Scenario Timers + Richer NPC Behavior + Near-Player Spawns --
+
+- Added a ScenarioTimer field to each NPC brain. Ambient scenarios now expire after 15 to 40
+  seconds and the NPC automatically picks a new activity, instead of sitting frozen in an
+  emote until the next AI tick fires.
+- Added PickNextAction — a weighted action dispatcher that gives on-foot NPCs four possible
+  activities: play an ambient scenario (35%), walk to a nearby shop or amenity (30%), walk to
+  a map hotspot such as a bar, ATM, or corner store (20%), or wander to a random nearby point
+  then settle into a new scenario (15%). Previously NPCs only had the scenario-or-shop split.
+- Restored a small near-player spawn chance. 10% of on-foot NPC spawns now land within 30 to
+  60 metres of the player so there is always some local activity. The remaining 90% continue
+  to scatter across random map regions as introduced in v11.
+
+
+-- v13: Los Santos RED Compatibility + Zone-Aware Gang Groups --
+
+- Fixed the root cause of NPCs showing as "Talk to unknown" with no dialogue options in Los
+  Santos RED. Changed AllowMissionPedsToInteract to true in the LSR Settings.xml so that
+  PlayerZero++ NPCs pass LSR's CanConverse check and receive full dialogue menus.
+- Added zone-aware gang group assignment. Hostile NPCs that spawn inside gang territory zones
+  are now added to the matching GTA V ambient gang relationship group (AMBIENT_GANG_BALLAS,
+  AMBIENT_GANG_LOST, AMBIENT_GANG_MARABUNTE, etc.) instead of the generic attack group.
+  Because LSR reads relationship group names at runtime, it automatically classifies these
+  NPCs as gang members with territory awareness, crime tracking, and police dispatch — no LSR
+  source changes required.
+- Removed SET_BLOCKING_OF_NON_TEMPORARY_EVENTS from idle and walking NPCs so LSR can trigger
+  conversation animations and interactions on them. The flag is still set on combat, vehicle,
+  aviation, and hacker NPCs where it is needed to prevent interruption.
+- Added zone-based scenario pools in DoAmbientScenario. Street zones use urban scenarios,
+  rural and highway zones use countryside scenarios, and remaining areas use a general pool,
+  so NPC animations feel appropriate for where they are on the map.
+
+
 -- v12: Blaine County Coverage + Player Count Increase --
 
 - Added 23 Grapeseed pedestrian spawn points covering Grapeseed Ave, east farm roads, and the

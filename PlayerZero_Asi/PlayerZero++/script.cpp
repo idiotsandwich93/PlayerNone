@@ -14,6 +14,8 @@ using namespace PZData;
 #include <iostream>
 #include <string>
 #include <vector>
+#include <unordered_map>
+#include <unordered_set>
 #include <cmath>
 #include <Windows.h>
 
@@ -37,6 +39,11 @@ Hash Gp_Friend;
 Hash GP_Attack;
 Hash Gp_Follow;
 Hash GP_Mental;
+std::unordered_set<Hash> ActiveGangGroups;
+
+// Forward declarations for LSR gang group helpers
+void ApplyGangRelationships(Hash gangGroup);
+Hash GetGangGroupForZone(Ped peddy);
 
 std::vector<GVM::GVMSystem> Pz_MenuList = {};
 
@@ -315,6 +322,10 @@ void SetRelationType(bool friendly)
 		PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, GP_Mental, GP_Mental);
 	}
 
+	// Keep any active LSR gang groups in sync when aggression changes
+	for (Hash gangGroup : ActiveGangGroups)
+		ApplyGangRelationships(gangGroup);
+
 	if (PED::GET_RELATIONSHIP_BETWEEN_GROUPS(GP_Player, GP_Mental) != 5)
 	{
 		WAIT(1000);
@@ -336,6 +347,7 @@ void LoadinData()
 	GP_Attack = AddRelationship("Hostile");
 	Gp_Follow = AddRelationship("Friend");
 	GP_Mental = AddRelationship("Bystander");
+	ActiveGangGroups.clear();
 	LoadLang(MySettings.Pz_Lang);
 
 	std::string Today = TimeDate();
@@ -1483,25 +1495,184 @@ void AddSenario(Ped peddy, const std::string& senareo, Vector4 pos, bool sitDown
 	AI::TASK_START_SCENARIO_AT_POSITION(peddy, (LPSTR)senareo.c_str(), pos.X, pos.Y, pos.Z, pos.R, -1, sitDown, true);
 }
 // Ambient idle scenarios: make NPCs feel like real online players
-void DoAmbientScenario(Ped peddy)
+// Returns the LSR-compatible gang relationship group hash for the zone the ped is in.
+// Returns 0 if the zone has no gang territory mapping.
+Hash GetGangGroupForZone(Ped peddy)
 {
-	static const std::string Scenarios[] = {
-		"WORLD_HUMAN_SMOKING",         // lighting up
-		"WORLD_HUMAN_STAND_MOBILE",    // texting / scrolling
-		"WORLD_HUMAN_LEANING",         // leaning on wall
-		"WORLD_HUMAN_DRINKING",        // sipping a drink
-		"WORLD_HUMAN_HANG_OUT_STREET", // hanging out
-		"WORLD_HUMAN_LOOK_AT_SCENERY", // looking around
-		"WORLD_HUMAN_CLIPBOARD",       // checking clipboard
-		"WORLD_HUMAN_STRETCHING",      // stretching
-		"WORLD_HUMAN_AA_SMOKE",        // smoking variant
-		"WORLD_HUMAN_GUARD_STAND",     // bouncer / standing guard
+	Vector3 pos = ENTITY::GET_ENTITY_COORDS(peddy, true);
+	std::string zone = std::string(ZONE::GET_NAME_OF_ZONE(pos.x, pos.y, pos.z));
+
+	// Zone -> gang ID mapping sourced from LSR's GangTerritories.xml (base + LSRed&Blue)
+	static const std::unordered_map<std::string, std::string> ZoneGangMap = {
+		{ "DAVIS",   "AMBIENT_GANG_BALLAS"    },
+		{ "SKID",    "AMBIENT_GANG_BALLAS"    },
+		{ "TEXTI",   "AMBIENT_GANG_BALLAS"    },
+		{ "EAST_V",  "AMBIENT_GANG_LOST"      },
+		{ "MIRR",    "AMBIENT_GANG_LOST"      },
+		{ "PALFOR",  "AMBIENT_GANG_LOST"      },
+		{ "SLAB",    "AMBIENT_GANG_LOST"      },
+		{ "EBURO",   "AMBIENT_GANG_MARABUNTE" },
+		{ "MURRI",   "AMBIENT_GANG_MARABUNTE" },
+		{ "CHAMH",   "AMBIENT_GANG_FAMILY"    },
+		{ "STRAW",   "AMBIENT_GANG_FAMILY"    },
+		{ "RANCHO",  "AMBIENT_GANG_MEXICAN"   },
+		{ "SANAND",  "AMBIENT_GANG_MEXICAN"   },
+		{ "CYPRE",   "AMBIENT_GANG_MEXICAN"   },
+		{ "STAD",    "AMBIENT_GANG_SALVA"     },
+		{ "DTVINE",  "AMBIENT_GANG_GAMBETTI"  },
+		{ "WVINE",   "AMBIENT_GANG_GAMBETTI"  },
+		{ "LMESA",   "AMBIENT_GANG_MADRAZO"   },
+		{ "CHIL",    "AMBIENT_GANG_MADRAZO"   },
+		{ "KOREAT",  "AMBIENT_GANG_KKANGPAE"  },
+		{ "VCANA",   "AMBIENT_GANG_KKANGPAE"  },
+		{ "LEGSQU",  "AMBIENT_GANG_WEICHENG"  },
+		{ "PBOX",    "AMBIENT_GANG_WEICHENG"  },
+		{ "LOSPUER", "AMBIENT_GANG_ARMENIAN"  },
+		{ "BEACH",   "AMBIENT_GANG_YARDIES"   },
+		{ "DELSOL",  "AMBIENT_GANG_YARDIES"   },
+		{ "ELYSIAN", "AMBIENT_GANG_DIABLOS"   },
+		{ "GRAPES",  "AMBIENT_GANG_PAVANO"    },
+		{ "RICHM",   "AMBIENT_GANG_MESSINA"   },
+		{ "CHU",     "AMBIENT_GANG_ANCELOTTI" },
+		{ "ALAMO",   "AMBIENT_GANG_HILLBILLY" },
+		{ "SANDY",   "AMBIENT_GANG_HILLBILLY" },
+		{ "DESRT",   "AMBIENT_GANG_ANGELS"    },
+		{ "HARMO",   "AMBIENT_GANG_ANGELS"    },
+		{ "PALETO",  "AMBIENT_GANG_LUPISELLA" },
 	};
-	const int ScenCount = 10;
-	int idx = RandomInt(0, ScenCount - 1);
+
+	auto it = ZoneGangMap.find(zone);
+	if (it == ZoneGangMap.end()) return 0;
+
+	Hash gangHash = -1;
+	PED::ADD_RELATIONSHIP_GROUP((LPSTR)it->second.c_str(), &gangHash);
+	return gangHash;
+}
+
+// Mirrors the GP_Attack relationship values onto a gang group so that
+// LSR-recognised gang NPCs still behave identically to hostile PZ NPCs.
+void ApplyGangRelationships(Hash gangGroup)
+{
+	int hostileVal = (MySettings.Aggression <= 3) ? 3 : 5;
+	int playerVal  = (MySettings.Aggression > 5)  ? 5 : 3;
+
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(playerVal,  GP_Player,  gangGroup);
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(playerVal,  gangGroup,  GP_Player);
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(hostileVal, gangGroup,  Gp_Friend);
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(hostileVal, Gp_Friend,  gangGroup);
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5,          gangGroup,  Gp_Follow);
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5,          Gp_Follow,  gangGroup);
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(hostileVal, gangGroup,  GP_Attack);
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(hostileVal, GP_Attack,  gangGroup);
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(hostileVal, gangGroup,  GP_Mental);
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(hostileVal, GP_Mental,  gangGroup);
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(0,          gangGroup,  gangGroup); // same gang: neutral
+}
+
+void DoAmbientScenario(PlayerBrain* brain)
+{
+	Ped peddy = brain->ThisPed;
+
+	// Street / gang-territory scenarios
+	static const std::string StreetScen[] = {
+		"WORLD_HUMAN_HANG_OUT_STREET",
+		"WORLD_HUMAN_SMOKING",
+		"WORLD_HUMAN_DRINKING",
+		"WORLD_HUMAN_STAND_IMPATIENT",
+		"WORLD_HUMAN_AA_SMOKE",
+		"WORLD_HUMAN_LEANING",
+	};
+	// Rural / open-area scenarios
+	static const std::string RuralScen[] = {
+		"WORLD_HUMAN_SMOKING",
+		"WORLD_HUMAN_AA_SMOKE",
+		"WORLD_HUMAN_LOOK_AT_SCENERY",
+		"WORLD_HUMAN_GUARD_STAND",
+		"WORLD_HUMAN_BINOCULARS",
+		"WORLD_HUMAN_LEANING",
+	};
+	// Urban / commercial scenarios
+	static const std::string UrbanScen[] = {
+		"WORLD_HUMAN_STAND_MOBILE",
+		"WORLD_HUMAN_CLIPBOARD",
+		"WORLD_HUMAN_STRETCHING",
+		"WORLD_HUMAN_LEANING",
+		"WORLD_HUMAN_DRINKING",
+		"WORLD_HUMAN_LOOK_AT_SCENERY",
+	};
+
+	Vector3 pos = ENTITY::GET_ENTITY_COORDS(peddy, true);
+	std::string zone = std::string(ZONE::GET_NAME_OF_ZONE(pos.x, pos.y, pos.z));
+
+	static const std::unordered_set<std::string> StreetZones = {
+		"DAVIS","SKID","TEXTI","RANCHO","CHAMH","STRAW","EAST_V","MIRR",
+		"EBURO","MURRI","STAD","CYPRE","LOSPUER","ELYSIAN","SANAND"
+	};
+	static const std::unordered_set<std::string> RuralZones = {
+		"ALAMO","DESRT","SANDY","HARMO","GRAPES","BLMCC","MTCHIL",
+		"MTGORDO","CANNY","ELGORL","NCHU","PALETO","PALFOR","SLAB","SANSZ"
+	};
+
+	const std::string* pool;
+	int poolSize = 6;
+
+	if (StreetZones.count(zone))
+		pool = StreetScen;
+	else if (RuralZones.count(zone))
+		pool = RuralScen;
+	else
+		pool = UrbanScen;
+
+	int idx = RandomInt(0, poolSize - 1);
 	AI::CLEAR_PED_TASKS(peddy);
-	AI::TASK_START_SCENARIO_IN_PLACE(peddy, (LPSTR)Scenarios[idx].c_str(), 0, true);
+	AI::TASK_START_SCENARIO_IN_PLACE(peddy, (LPSTR)pool[idx].c_str(), 0, true);
 	PED::SET_PED_KEEP_TASK(peddy, true);
+	PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(peddy, false); // allow LSR interactions
+
+	// NPC will abandon this scenario after 15-40 seconds and pick a new action
+	brain->ScenarioTimer = InGameTime() + RandomInt(15000, 40000);
+	brain->ShopTimer = 0;
+}
+
+// Forward declarations needed by PickNextAction (defined later in file)
+void WalkHere(Ped peddy, Vector3 pos);
+void WalkHere(Ped peddy, Vector4 pos);
+extern const std::vector<Vector3> PlayerHotspots;
+
+// After a scenario or shop visit expires, pick the next thing the NPC should do.
+// Weighted: 35% new scenario, 30% walk to shop, 20% walk to hotspot, 15% wander nearby.
+void PickNextAction(PlayerBrain* brain)
+{
+	Ped peddy = brain->ThisPed;
+	int roll = RandomInt(1, 100);
+
+	if (roll <= 35)
+	{
+		DoAmbientScenario(brain);
+	}
+	else if (roll <= 65)
+	{
+		// Walk to a shop / amenity point
+		WalkHere(peddy, FindingShops(peddy));
+		brain->ShopTimer = InGameTime() + RandomInt(20000, 45000);
+		brain->ScenarioTimer = 0;
+	}
+	else if (roll <= 85 && !PlayerHotspots.empty())
+	{
+		// Walk to a random map hotspot (bar, ATM, corner store, etc.)
+		int iSpot = RandomInt(0, (int)PlayerHotspots.size() - 1);
+		WalkHere(peddy, PlayerHotspots[iSpot]);
+		brain->ShopTimer = InGameTime() + RandomInt(25000, 55000);
+		brain->ScenarioTimer = 0;
+	}
+	else
+	{
+		// Short wander to a random nearby point then settle into a scenario
+		Vector3 nearby = InAreaOfV3(ENTITY::GET_ENTITY_COORDS(peddy, true), 15.0f, 40.0f);
+		WalkHere(peddy, nearby);
+		brain->ScenarioTimer = InGameTime() + RandomInt(20000, 50000);
+		brain->ShopTimer = 0;
+	}
 }
 void FollowPed(Ped target, Ped follower)
 {
@@ -1548,6 +1719,7 @@ void WalkHere(Ped peddy, Vector3 pos)
 	AI::CLEAR_PED_TASKS(peddy);
 	AI::TASK_FOLLOW_NAV_MESH_TO_COORD(peddy, pos.x, pos.y, pos.z, 1.0, -1, 0.0, false, 0.0);
 	PED::SET_PED_KEEP_TASK(peddy, true);
+	PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(peddy, false); // allow LSR interactions
 }
 void WalkHere(Ped peddy, Vector4 pos)
 {
@@ -1851,9 +2023,29 @@ void FightPlayer(PlayerBrain* brain)
 	PED::REMOVE_PED_FROM_GROUP(brain->ThisPed);
 
 	if (MySettings.Aggression > 8)
+	{
 		RelGroupMember(brain->ThisPed, GP_Mental);
+	}
 	else
-		RelGroupMember(brain->ThisPed, GP_Attack);
+	{
+		// Assign LSR-compatible gang group for the NPC's spawn zone when available.
+		// This lets LSR recognise them as gang members with full crime tracking,
+		// territory awareness, and correct police dispatch — without any LSR changes.
+		Hash gangGroup = GetGangGroupForZone(brain->ThisPed);
+		if (gangGroup != 0)
+		{
+			if (ActiveGangGroups.find(gangGroup) == ActiveGangGroups.end())
+			{
+				ActiveGangGroups.insert(gangGroup);
+				ApplyGangRelationships(gangGroup);
+			}
+			RelGroupMember(brain->ThisPed, gangGroup);
+		}
+		else
+		{
+			RelGroupMember(brain->ThisPed, GP_Attack);
+		}
+	}
 }
 
 void FightTogether(Vehicle vic, Ped peddy)
@@ -2528,15 +2720,7 @@ Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 
 				// Force initial movement for on-foot NPCs to prevent AFK spawning
 				if (!brain->Driver && !brain->Passenger && !brain->Follower)
-				{
-					if (RandomInt(0, 1) == 0)
-						DoAmbientScenario(ThisPed);
-					else
-					{
-						WalkHere(ThisPed, FindingShops(ThisPed));
-						brain->ShopTimer = InGameTime() + RandomInt(20000, 45000);
-					}
-				}
+					PickNextAction(brain);
 
 				if (brain->Oppressor != NULL)
 				{
@@ -4503,12 +4687,19 @@ void ProcessPZ(PlayerBrain* brain)
 									}
 								}
 							}
+							else if (brain->ScenarioTimer > 0 && GameTime > brain->ScenarioTimer)
+							{
+								// Scenario timed out - pick a new action so the NPC does not idle forever
+								brain->ScenarioTimer = 0;
+								brain->FindPlayer = GameTime + RandomInt(15000, 40000);
+								PickNextAction(brain);
+							}
 							else if (brain->ShopTimer > 0 && GameTime > brain->ShopTimer)
 							{
 								// NPC has been in shop long enough - give them a new task and reset timer
 								brain->ShopTimer = 0;
 								brain->FindPlayer = GameTime + RandomInt(30000, 60000);
-								DoAmbientScenario(PlayZero);
+								PickNextAction(brain);
 							}
 							else if (brain->FindPlayer < GameTime)
 							{
@@ -4542,11 +4733,7 @@ void ProcessPZ(PlayerBrain* brain)
 										if (MySettings.Aggression <= 3 && RandomInt(1, 10) < 9)
 										{
 											brain->FindPlayer = GameTime + RandomInt(60000, 120000);
-											if (RandomInt(1, 10) < 4)
-												DoAmbientScenario(PlayZero);
-											else
-												WalkHere(PlayZero, FindingShops(PlayZero));
-												brain->ShopTimer = GameTime + RandomInt(20000, 45000);
+											PickNextAction(brain);
 										}
 										else
 										{
@@ -4560,7 +4747,7 @@ void ProcessPZ(PlayerBrain* brain)
 											else
 											{
 												if (RandomInt(1, 10) < 4)
-													DoAmbientScenario(PlayZero);
+													PickNextAction(brain);
 												else
 													WalkHere(PlayZero, FindingShops(PlayZero));
 													brain->ShopTimer = GameTime + RandomInt(20000, 45000);
@@ -4697,11 +4884,7 @@ void ProcessPZ(PlayerBrain* brain)
 								if (MySettings.Aggression <= 3 && RandomInt(1, 10) < 8)
 								{
 									brain->FindPlayer = GameTime + RandomInt(60000, 120000);
-									if (RandomInt(1, 10) < 4)
-										DoAmbientScenario(PlayZero);
-									else
-										WalkHere(PlayZero, FindingShops(PlayZero));
-										brain->ShopTimer = GameTime + RandomInt(20000, 45000);
+									PickNextAction(brain);
 								}
 								else
 								{
@@ -4709,11 +4892,7 @@ void ProcessPZ(PlayerBrain* brain)
 									brain->ThisEnemy = FindAFight(brain);
 									if (brain->ThisEnemy == NULL)
 									{
-										if (RandomInt(1, 10) < 4)
-											DoAmbientScenario(PlayZero);
-										else
-											WalkHere(PlayZero, FindingShops(PlayZero));
-											brain->ShopTimer = GameTime + RandomInt(20000, 45000);
+										PickNextAction(brain);
 									}
 									else
 									{

@@ -889,10 +889,18 @@ namespace PZSys
 		}
 		else
 		{
-			// Pick a random region across the entire map so NPCs scatter like a real server
-			int regionIdx = RandomInt(0, (int)SanLoocIndex.size() - 1);
-			Vector3 RegionCenter = NewVector3(SanLoocIndex[regionIdx].X, SanLoocIndex[regionIdx].Y, SanLoocIndex[regionIdx].Z);
-			Pos = PedPlace(RegionCenter);
+			// 10% chance: spawn near the player so there's always some local activity.
+			// 90% chance: random map region so most NPCs scatter across the full world.
+			if (RandomInt(1, 10) == 1)
+			{
+				Pos = InAreaOf(PlayerPosi(), 30.0f, 60.0f);
+			}
+			else
+			{
+				int regionIdx = RandomInt(0, (int)SanLoocIndex.size() - 1);
+				Vector3 RegionCenter = NewVector3(SanLoocIndex[regionIdx].X, SanLoocIndex[regionIdx].Y, SanLoocIndex[regionIdx].Z);
+				Pos = PedPlace(RegionCenter);
+			}
 		}
 
 		LastDropPed.push_back(NewVector3(Pos.X, Pos.Y, Pos.Z));
