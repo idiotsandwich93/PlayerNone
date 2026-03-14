@@ -889,9 +889,20 @@ namespace PZSys
 		}
 		else
 		{
-			// 10% chance: spawn near the player so there's always some local activity.
-			// 90% chance: random map region so most NPCs scatter across the full world.
-			if (RandomInt(1, 10) == 1)
+			// Cap near-player spawns at 5 on-foot peds within 80m.
+			// This keeps the local area feeling alive without overwhelming the player,
+			// and scales automatically regardless of the MaxPlayers setting.
+			int nearCount = 0;
+			Vector3 pPos = PlayerPosi();
+			for (int i = 0; i < (int)PedList.size(); i++)
+			{
+				if (!PedList[i].Driver && !PedList[i].Passenger &&
+					DistanceTo(PedList[i].ThisPed, pPos) < 80.0f)
+				{
+					nearCount++;
+				}
+			}
+			if (nearCount < 5)
 			{
 				Pos = InAreaOf(PlayerPosi(), 30.0f, 60.0f);
 			}

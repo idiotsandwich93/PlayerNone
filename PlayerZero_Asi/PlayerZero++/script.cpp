@@ -1629,8 +1629,8 @@ void DoAmbientScenario(PlayerBrain* brain)
 	PED::SET_PED_KEEP_TASK(peddy, true);
 	PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(peddy, false); // allow LSR interactions
 
-	// NPC will abandon this scenario after 15-40 seconds and pick a new action
-	brain->ScenarioTimer = InGameTime() + RandomInt(15000, 40000);
+	// NPC will abandon this scenario after 10-20 seconds and pick a new action
+	brain->ScenarioTimer = InGameTime() + RandomInt(10000, 20000);
 	brain->ShopTimer = 0;
 }
 
@@ -1639,39 +1639,137 @@ void WalkHere(Ped peddy, Vector3 pos);
 void WalkHere(Ped peddy, Vector4 pos);
 extern const std::vector<Vector3> PlayerHotspots;
 
+// Carjack the nearest ambient vehicle that isn't a PZ-managed vehicle or the player's car.
+// Uses flag 9 (force carjack) which triggers GTA V's native carjack animation and ejects the driver.
+void DoCarjack(PlayerBrain* brain)
+{
+	Ped peddy = brain->ThisPed;
+	Vector3 pos = ENTITY::GET_ENTITY_COORDS(peddy, true);
+
+	// Find closest driveable vehicle within 50m (flags 70 = cars/bikes, excludes boats/planes)
+	Vehicle targetVeh = VEHICLE::GET_CLOSEST_VEHICLE(pos.x, pos.y, pos.z, 50.0f, 0, 70);
+	if (!ENTITY::DOES_ENTITY_EXIST(targetVeh))
+		return;
+
+	// Don't carjack any PZ-managed vehicle
+	for (auto& b : PedList)
+		if (b.ThisVeh == targetVeh)
+			return;
+
+	// Don't carjack the player's current vehicle
+	if (targetVeh == PED::GET_VEHICLE_PED_IS_IN(PLAYER::PLAYER_PED_ID(), false))
+		return;
+
+	// Flag 9 = carjack force: GTA V ejects the current driver and plays the carjack animation
+	AI::CLEAR_PED_TASKS(peddy);
+	AI::TASK_ENTER_VEHICLE(peddy, targetVeh, -1, -2, 15.0f, 9, 0);
+
+	// Keep AI tick dormant while the ped drives the stolen vehicle
+	brain->ShopTimer = InGameTime() + RandomInt(90000, 180000);
+}
+
+// Two PZ peds meet and face each other briefly — simulates a drug exchange visually.
+// LSR will not flag this as a tracked crime, but it looks authentic in the game world.
+void DoDrugDeal(PlayerBrain* brain)
+{
+	Ped peddy = brain->ThisPed;
+	Vector3 myPos = ENTITY::GET_ENTITY_COORDS(peddy, true);
+
+	// Find the nearest on-foot PZ ped within 20m to deal with
+	Ped target = NULL;
+	float nearest = 20.0f;
+	for (auto& b : PedList)
+	{
+		if (b.ThisPed == peddy || b.Driver || b.Passenger || b.YoDeeeed)
+			continue;
+		float dist = SYSTEM::VDIST(myPos.x, myPos.y, myPos.z,
+			ENTITY::GET_ENTITY_COORDS(b.ThisPed, true).x,
+			ENTITY::GET_ENTITY_COORDS(b.ThisPed, true).y,
+			ENTITY::GET_ENTITY_COORDS(b.ThisPed, true).z);
+		if (dist < nearest)
+		{
+			nearest = dist;
+			target = b.ThisPed;
+		}
+	}
+	if (target == NULL)
+		return;
+
+	// Walk to target and face them — the brief proximity exchange sells the deal visually
+	AI::CLEAR_PED_TASKS(peddy);
+	AI::TASK_GO_TO_ENTITY(peddy, target, -1, 2.0f, 1.5f, 1073741824, 0);
+	brain->ScenarioTimer = InGameTime() + RandomInt(8000, 15000);
+}
+
 // After a scenario or shop visit expires, pick the next thing the NPC should do.
-// Weighted: 35% new scenario, 30% walk to shop, 20% walk to hotspot, 15% wander nearby.
+// Criminal peds (IsCriminal) get a chance to carjack or deal drugs when their CrimeTimer has elapsed.
+// Weighted for civilians: 50% ambient wander, 20% walk to shop, 15% brief scenario, 15% walk to hotspot.
 void PickNextAction(PlayerBrain* brain)
 {
 	Ped peddy = brain->ThisPed;
+	brain->ScenarioTimer = 0;
+	brain->ShopTimer = 0;
+
+	// Crime opportunity: only for criminal peds whose cooldown has expired
+	if (brain->IsCriminal && brain->CrimeTimer < InGameTime())
+	{
+		int crimeRoll = RandomInt(1, 100);
+		if (crimeRoll <= 20)
+		{
+			// 20%: attempt a carjack — GTA V handles the animation and ejects the driver natively
+			DoCarjack(brain);
+			brain->CrimeTimer = InGameTime() + RandomInt(180000, 360000); // 3-6 min cooldown
+			return;
+		}
+		else if (brain->IsDealer && crimeRoll <= 35)
+		{
+			// 15% (dealers only): walk to a nearby PZ ped to simulate a drug exchange
+			DoDrugDeal(brain);
+			brain->CrimeTimer = InGameTime() + RandomInt(60000, 120000); // 1-2 min cooldown
+			return;
+		}
+		// Else: fall through to normal behavior, reset timer so they don't spam the check
+		brain->CrimeTimer = InGameTime() + RandomInt(60000, 120000);
+	}
+
 	int roll = RandomInt(1, 100);
 
-	if (roll <= 35)
+	if (roll <= 50)
 	{
-		DoAmbientScenario(brain);
+		// Use GTA's native ambient ped AI - ped walks around naturally,
+		// uses crossings, stops to look around, reacts to environment.
+		AI::CLEAR_PED_TASKS(peddy);
+		AI::TASK_WANDER_STANDARD(peddy, 10.0f, 10);
+		PED::SET_PED_KEEP_TASK(peddy, true);
+		PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(peddy, false);
+		brain->ScenarioTimer = InGameTime() + RandomInt(20000, 45000);
 	}
-	else if (roll <= 65)
+	else if (roll <= 70)
 	{
 		// Walk to a shop / amenity point
 		WalkHere(peddy, FindingShops(peddy));
-		brain->ShopTimer = InGameTime() + RandomInt(20000, 45000);
-		brain->ScenarioTimer = 0;
+		brain->ShopTimer = InGameTime() + RandomInt(15000, 30000);
 	}
-	else if (roll <= 85 && !PlayerHotspots.empty())
+	else if (roll <= 85)
 	{
-		// Walk to a random map hotspot (bar, ATM, corner store, etc.)
+		// Brief standing animation (smoking, leaning, phone, etc.)
+		DoAmbientScenario(brain);
+	}
+	else if (!PlayerHotspots.empty())
+	{
+		// Walk to a known map hotspot (bar, ATM, corner store, etc.)
 		int iSpot = RandomInt(0, (int)PlayerHotspots.size() - 1);
 		WalkHere(peddy, PlayerHotspots[iSpot]);
-		brain->ShopTimer = InGameTime() + RandomInt(25000, 55000);
-		brain->ScenarioTimer = 0;
+		brain->ShopTimer = InGameTime() + RandomInt(20000, 40000);
 	}
 	else
 	{
-		// Short wander to a random nearby point then settle into a scenario
-		Vector3 nearby = InAreaOfV3(ENTITY::GET_ENTITY_COORDS(peddy, true), 15.0f, 40.0f);
-		WalkHere(peddy, nearby);
-		brain->ScenarioTimer = InGameTime() + RandomInt(20000, 50000);
-		brain->ShopTimer = 0;
+		// Fallback: ambient wander
+		AI::CLEAR_PED_TASKS(peddy);
+		AI::TASK_WANDER_STANDARD(peddy, 10.0f, 10);
+		PED::SET_PED_KEEP_TASK(peddy, true);
+		PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(peddy, false);
+		brain->ScenarioTimer = InGameTime() + RandomInt(20000, 45000);
 	}
 }
 void FollowPed(Ped target, Ped follower)
@@ -2718,9 +2816,24 @@ Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 				else
 					FightPlayer(brain);
 
-				// Force initial movement for on-foot NPCs to prevent AFK spawning
+				// Force initial movement for on-foot NPCs to prevent AFK spawning.
+				// Push FindPlayer into the future so the AI tick does not
+				// immediately override the just-assigned task (FindPlayer defaults to 0).
 				if (!brain->Driver && !brain->Passenger && !brain->Follower)
+				{
+					// 20% of on-foot peds are criminals; 25% of those are drug dealers.
+					// CrimeTimer is staggered so crimes don't all fire at once after a spawn wave.
+					if (RandomInt(1, 100) <= 20)
+					{
+						brain->IsCriminal = true;
+						if (RandomInt(1, 100) <= 25)
+							brain->IsDealer = true;
+						brain->CrimeTimer = InGameTime() + RandomInt(60000, 180000);
+					}
+
 					PickNextAction(brain);
+					brain->FindPlayer = InGameTime() + RandomInt(45000, 90000);
+				}
 
 				if (brain->Oppressor != NULL)
 				{
@@ -2868,10 +2981,8 @@ Vehicle SpawnVehicle(PlayerBrain* brain, bool newPlayer, bool canFill)
 
 			brain->ThisVeh = BuildVehicle;
 			brain->Driver = true;
+			brain->ApprochPlayer = false; // drivers never stop to approach the player
 			brain->FindPlayer = 0;
-
-			if (!HasASeat(BuildVehicle))
-				brain->ApprochPlayer = false;
 
 			if (brain->PrefredVehicle == 8)
 			{

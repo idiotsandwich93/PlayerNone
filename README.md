@@ -67,6 +67,34 @@ Change Log
 ---- Fork Changes by idiotsandwich93 ----
 
 
+-- v20: Removed Custom Drug Buy Prompt --
+
+- Removed the custom [E] Buy ($50) drug purchase prompt added in v19. Drug buying and selling
+  for PlayerZero++ NPCs is now handled entirely by Los Santos RED's built-in interaction system.
+  Enable TaskMissionPeds in LSR's Settings.xml to allow LSR to assign zone-based drug menus
+  to PlayerZero++ peds the same way it does for ambient civilians.
+
+
+-- v19: NPC Crime Behaviors + LSR Drug Interaction Groundwork --
+
+- Added IsCriminal flag (20% of spawned NPCs) that gates crime behaviors behind a cooldown
+  timer, so chaos is possible but not constant.
+- Added IsDealer flag (25% of criminals, ~5% overall) that enables drug-dealing-related behavior
+  in the crime system.
+- Added carjacking behavior for criminal NPCs. Uses GTA V's native TASK_ENTER_VEHICLE with flag
+  9, which plays the carjack animation and ejects the driver. Criminal NPCs roll a 20% chance
+  each crime tick to attempt a carjack on the nearest unoccupied vehicle that isn't the player's.
+  Cooldown of 3 to 6 minutes between attempts.
+- Added NPC-to-NPC drug deal behavior for dealer NPCs. Dealer walks to the nearest on-foot NPC
+  within 20 metres using TASK_GO_TO_ENTITY, simulating a street deal visually. Cooldown of 1 to
+  2 minutes between attempts.
+- Added CrimeTimer field to PlayerBrain struct to track per-NPC crime action cooldowns
+  independently of the existing ShopTimer and ScenarioTimer fields.
+- Replaced the near-player spawn percentage with an absolute cap: on-foot NPCs only spawn near
+  the player if fewer than 5 on-foot NPCs are already within 80 metres, preventing overcrowding
+  at any player count without being tied to the MaxPlayers setting.
+
+
 -- v14: Scenario Timers + Richer NPC Behavior + Near-Player Spawns --
 
 - Added a ScenarioTimer field to each NPC brain. Ambient scenarios now expire after 15 to 40
