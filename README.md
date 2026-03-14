@@ -67,6 +67,34 @@ Change Log
 ---- Fork Changes by idiotsandwich93 ----
 
 
+-- v22: Visible Criminal Behavior — Armed Peds, Fights, Zone Aggression --
+
+- Criminal peds now spawn with weapons that match their zone's gang profile
+  (long guns, sidearms, or melee from Gangs.xml percentages) but with the
+  weapon holstered — no draw animation fires on spawn, no wanted level generated.
+  Weapon is only equipped when a crime action actually triggers.
+- Added zone aggression tiers. Tier 3 (Davis, Strawberry, Rancho, Skid Row,
+  Banning, Elysian Island) — frequent carjacks, fights, and dealing. Tier 1
+  (Vinewood, Rockford Hills, Beverly Hills, Golf Club) — rare events. Everything
+  else is tier 2. Tier drives both crime frequency and action probabilities.
+- Added DoFight(): criminal ped equips their weapon and attacks the nearest
+  ambient GTA pedestrian within 40m using TASK_COMBAT_PED. LSR's passive crime
+  detection picks this up as a game-native assault event automatically.
+- Crime timer is now zone-scaled: tier 3 = 30-60s between attempts, tier 2 =
+  60-120s, tier 1 = 120-240s. Davis feels like Davis; Vinewood stays quiet.
+- Carjack and fight thresholds scale by tier: high-crime areas roll 30% carjack
+  and 40% fight chance per crime tick; low-crime areas roll 10% and 5%.
+- Post-crime wanted flee: after a carjack or fight, IsWanted is set and the ped
+  flees (TASK_SMART_FLEE_COORD) for 45-60 seconds, then holsters their weapon
+  and returns to normal ambient behavior.
+- LSR location routing now filters to within 250m of the ped's position.
+  Peds no longer get routed to destinations 2km away that they would despawn
+  before reaching. Falls back to wander if nothing close enough is found.
+- Added AggressionTier and ArmedWeaponHash fields to PlayerBrain struct.
+- Fixed: LSR detection notification now fires 8 seconds after load, when the
+  player is actually in control and will see it.
+
+
 -- v21: LSR Data Integration — Zone-Aware NPC Simulation --
 
 - Added LSRData module (LSRData.h / LSRData.cpp) that reads Los Santos RED's XML files at

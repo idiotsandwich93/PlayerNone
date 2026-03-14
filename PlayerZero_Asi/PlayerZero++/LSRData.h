@@ -76,6 +76,10 @@ public:
     static const LSRLocation* GetNearestLocation(
         float px, float py, float pz, const std::string& typeName);
 
+    // Nearest location of typeName within maxDist metres, or nullptr if none qualify.
+    static const LSRLocation* GetNearestLocationWithin(
+        float px, float py, float pz, const std::string& typeName, float maxDist);
+
     // Hour-aware nightlife destination: bars at night, restaurants at evening.
     static const LSRLocation* GetNightlifeLocation(int hour);
 

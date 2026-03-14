@@ -1590,6 +1590,78 @@ void ApplyGangRelationships(Hash gangGroup)
 	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(0,          gangGroup,  gangGroup); // same gang: neutral
 }
 
+// Returns 1 (low), 2 (medium), or 3 (high) crime aggression for the given GTA zone name.
+// High = Davis, Strawberry, Rancho, Skid Row, etc.
+// Low = Vinewood Hills, Rockford Hills, Golf club, etc.
+// Everything else = 2 (medium baseline).
+int GetZoneAggressionTier(const std::string& zone)
+{
+	static const char* highCrime[] = {
+		"DAVIS", "STRAW", "RANCHO", "TEXTI", "SKID",
+		"BANNING", "ELYSIAN", "EBURO", "MURIE", "CYPRE"
+	};
+	static const char* lowCrime[] = {
+		"VINE", "ROCKF", "BEVER", "RTRAK", "GOLF",
+		"RICHM", "DELPE", "LMESA", "AIRP"
+	};
+	for (auto s : highCrime) if (zone == s) return 3;
+	for (auto s : lowCrime)  if (zone == s) return 1;
+	return 2;
+}
+
+// Gives the criminal ped a weapon appropriate to their zone's gang profile.
+// equipNow=false keeps the weapon holstered so no draw animation fires
+// and no wanted level is generated on spawn.
+void ArmCriminalPed(PlayerBrain* brain, const LSRGangProfile* gp)
+{
+	Ped peddy = brain->ThisPed;
+
+	// Default percentages when no gang profile is available
+	int pctLong   = gp ? gp->pctLongGuns  : 10;
+	int pctSide   = gp ? gp->pctSidearms  : 30;
+	int pctMelee  = gp ? gp->pctMelee     : 20;
+
+	int roll = RandomInt(1, 100);
+	Hash weapon = 0;
+	int  ammo   = 0;
+
+	static const Hash longGuns[] = {
+		GAMEPLAY::GET_HASH_KEY("WEAPON_ASSAULTRIFLE"),
+		GAMEPLAY::GET_HASH_KEY("WEAPON_CARBINERIFLE"),
+		GAMEPLAY::GET_HASH_KEY("WEAPON_SMG"),
+		GAMEPLAY::GET_HASH_KEY("WEAPON_PUMPSHOTGUN")
+	};
+	static const Hash sidearms[] = {
+		GAMEPLAY::GET_HASH_KEY("WEAPON_PISTOL"),
+		GAMEPLAY::GET_HASH_KEY("WEAPON_COMBATPISTOL"),
+		GAMEPLAY::GET_HASH_KEY("WEAPON_APPISTOL")
+	};
+	static const Hash melees[] = {
+		GAMEPLAY::GET_HASH_KEY("WEAPON_KNIFE"),
+		GAMEPLAY::GET_HASH_KEY("WEAPON_BAT"),
+		GAMEPLAY::GET_HASH_KEY("WEAPON_CROWBAR")
+	};
+
+	if (roll <= pctLong) {
+		weapon = longGuns[RandomInt(0, 3)];
+		ammo   = RandomInt(60, 120);
+	}
+	else if (roll <= pctLong + pctSide) {
+		weapon = sidearms[RandomInt(0, 2)];
+		ammo   = RandomInt(20, 45);
+	}
+	else if (roll <= pctLong + pctSide + pctMelee) {
+		weapon = melees[RandomInt(0, 2)];
+		ammo   = 1;
+	}
+
+	if (weapon != 0) {
+		// equipNow=false — weapon is owned but holstered; no draw, no wanted level.
+		WEAPON::GIVE_WEAPON_TO_PED(peddy, weapon, ammo, false, false);
+		brain->ArmedWeaponHash = weapon;
+	}
+}
+
 void DoAmbientScenario(PlayerBrain* brain)
 {
 	Ped peddy = brain->ThisPed;
@@ -1660,6 +1732,57 @@ void WalkHere(Ped peddy, Vector3 pos);
 void WalkHere(Ped peddy, Vector4 pos);
 extern const std::vector<Vector3> PlayerHotspots;
 
+// Criminal ped draws their weapon and attacks the nearest non-PZ ambient pedestrian.
+// LSR's passive crime detection will naturally pick this up as a GTA assault event.
+void DoFight(PlayerBrain* brain)
+{
+	Ped peddy = brain->ThisPed;
+	Vector3 myPos = ENTITY::GET_ENTITY_COORDS(peddy, true);
+
+	// Scan nearby world peds (ScriptHookV extension).
+	const int MAX_SCAN = 32;
+	int nearPeds[MAX_SCAN] = {};
+	int count = worldGetAllPeds(nearPeds, MAX_SCAN);
+
+	Ped target = NULL;
+	float nearest = 40.0f;
+	for (int i = 0; i < count; i++)
+	{
+		Ped p = nearPeds[i];
+		if (!ENTITY::DOES_ENTITY_EXIST(p) || p == peddy) continue;
+		if (ENTITY::IS_ENTITY_DEAD(p))                    continue;
+		if (PED::IS_PED_A_PLAYER(p))                      continue;
+
+		// Skip PZ-managed peds
+		bool isPZ = false;
+		for (auto& b : PedList)
+			if (b.ThisPed == p) { isPZ = true; break; }
+		if (isPZ) continue;
+
+		float dist = SYSTEM::VDIST(myPos.x, myPos.y, myPos.z,
+			ENTITY::GET_ENTITY_COORDS(p, true).x,
+			ENTITY::GET_ENTITY_COORDS(p, true).y,
+			ENTITY::GET_ENTITY_COORDS(p, true).z);
+		if (dist < nearest)
+		{
+			nearest = dist;
+			target  = p;
+		}
+	}
+
+	if (target == NULL) return;
+
+	// Equip the armed weapon now that a crime is actually happening.
+	if (brain->ArmedWeaponHash != 0)
+		WEAPON::SET_CURRENT_PED_WEAPON(peddy, brain->ArmedWeaponHash, true);
+
+	AI::CLEAR_PED_TASKS(peddy);
+	AI::TASK_COMBAT_PED(peddy, target, 0, 16);
+	brain->IsWanted    = true;
+	brain->WantedTimer = InGameTime() + 45000; // flee after 45s
+	brain->ScenarioTimer = InGameTime() + RandomInt(12000, 20000);
+}
+
 // Carjack the nearest ambient vehicle that isn't a PZ-managed vehicle or the player's car.
 // Uses flag 9 (force carjack) which triggers GTA V's native carjack animation and ejects the driver.
 void DoCarjack(PlayerBrain* brain)
@@ -1685,6 +1808,8 @@ void DoCarjack(PlayerBrain* brain)
 	AI::CLEAR_PED_TASKS(peddy);
 	AI::TASK_ENTER_VEHICLE(peddy, targetVeh, -1, -2, 15.0f, 9, 0);
 
+	brain->IsWanted    = true;
+	brain->WantedTimer = InGameTime() + 60000; // drive away for 60s then clear
 	// Keep AI tick dormant while the ped drives the stolen vehicle
 	brain->ShopTimer = InGameTime() + RandomInt(90000, 180000);
 }
@@ -1734,23 +1859,43 @@ void PickNextAction(PlayerBrain* brain)
 	// Crime opportunity: only for criminal peds whose cooldown has expired
 	if (brain->IsCriminal && brain->CrimeTimer < InGameTime())
 	{
+		// Crime timer scale by zone aggression tier.
+		int ctMin, ctMax;
+		if      (brain->AggressionTier == 3) { ctMin = 30000;  ctMax = 60000;  }
+		else if (brain->AggressionTier == 2) { ctMin = 60000;  ctMax = 120000; }
+		else                                  { ctMin = 120000; ctMax = 240000; }
+
 		int crimeRoll = RandomInt(1, 100);
-		if (crimeRoll <= 20)
+
+		// Tier 3 (high-crime) rolls fight/carjack more aggressively.
+		// Tier 1 (low-crime) almost never carjacks; fights are rarer still.
+		int carjackThresh = (brain->AggressionTier == 3) ? 30 :
+		                    (brain->AggressionTier == 2) ? 20 : 10;
+		int fightThresh   = carjackThresh +
+		                    ((brain->AggressionTier == 3) ? 40 :
+		                     (brain->AggressionTier == 2) ? 20 : 5);
+
+		if (crimeRoll <= carjackThresh)
 		{
-			// 20%: attempt a carjack — GTA V handles the animation and ejects the driver natively
 			DoCarjack(brain);
-			brain->CrimeTimer = InGameTime() + RandomInt(180000, 360000); // 3-6 min cooldown
+			brain->CrimeTimer = InGameTime() + RandomInt(ctMin * 3, ctMax * 3);
 			return;
 		}
-		else if (brain->IsDealer && crimeRoll <= 35)
+		else if (crimeRoll <= fightThresh)
 		{
-			// 15% (dealers only): walk to a nearby PZ ped to simulate a drug exchange
-			DoDrugDeal(brain);
-			brain->CrimeTimer = InGameTime() + RandomInt(60000, 120000); // 1-2 min cooldown
+			// Pick a fight with the nearest ambient pedestrian.
+			DoFight(brain);
+			brain->CrimeTimer = InGameTime() + RandomInt(ctMin, ctMax);
 			return;
 		}
-		// Else: fall through to normal behavior, reset timer so they don't spam the check
-		brain->CrimeTimer = InGameTime() + RandomInt(60000, 120000);
+		else if (brain->IsDealer && crimeRoll <= fightThresh + 15)
+		{
+			DoDrugDeal(brain);
+			brain->CrimeTimer = InGameTime() + RandomInt(ctMin, ctMax);
+			return;
+		}
+		// Fall through: no action this tick, reset timer.
+		brain->CrimeTimer = InGameTime() + RandomInt(ctMin, ctMax);
 	}
 
 	int roll = RandomInt(1, 100);
@@ -1778,17 +1923,30 @@ void PickNextAction(PlayerBrain* brain)
 	}
 	else if (LSRData::IsAvailable)
 	{
-		// Route to a time-of-day appropriate LSR location.
-		// Night-shift peds head to bars; daytime head to restaurants/gas stations.
+		// Route to a time-of-day appropriate LSR location that is within 250m.
+		// Locations further away are skipped — peds would despawn before arriving.
 		int hour = TIME::GET_CLOCK_HOURS();
+		Vector3 pedPos = ENTITY::GET_ENTITY_COORDS(peddy, true);
+		const float MAX_ROUTE_DIST = 250.0f;
+
 		const LSRLocation* dest = nullptr;
 
 		if (brain->SchedulePhase == 3 || brain->SchedulePhase == 2)
-			dest = LSRData::GetNightlifeLocation(hour);
+		{
+			// Night/evening: nearest open bar within 250m, else nearest restaurant.
+			dest = LSRData::GetNearestLocationWithin(pedPos.x, pedPos.y, pedPos.z, "Bar", MAX_ROUTE_DIST);
+			if (!dest)
+				dest = LSRData::GetNearestLocationWithin(pedPos.x, pedPos.y, pedPos.z, "Restaurant", MAX_ROUTE_DIST);
+		}
 		else if (brain->IsDealer)
-			dest = LSRData::GetRandomLocation("IllicitMarketplace", -1);
+		{
+			dest = LSRData::GetNearestLocationWithin(pedPos.x, pedPos.y, pedPos.z, "IllicitMarketplace", MAX_ROUTE_DIST);
+		}
 		else
-			dest = LSRData::GetRandomLocation(hour < 12 ? "GasStation" : "Restaurant", -1);
+		{
+			const char* type = (hour < 12) ? "GasStation" : "Restaurant";
+			dest = LSRData::GetNearestLocationWithin(pedPos.x, pedPos.y, pedPos.z, type, MAX_ROUTE_DIST);
+		}
 
 		if (dest != nullptr)
 		{
@@ -1798,7 +1956,7 @@ void PickNextAction(PlayerBrain* brain)
 		}
 		else
 		{
-			// LSR had no matching open location — fall back to known hotspot list
+			// No LSR location within range — fall back to static hotspot or wander.
 			if (!PlayerHotspots.empty())
 			{
 				int iSpot = RandomInt(0, (int)PlayerHotspots.size() - 1);
@@ -2881,11 +3039,12 @@ Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 				// immediately override the just-assigned task (FindPlayer defaults to 0).
 				if (!brain->Driver && !brain->Passenger && !brain->Follower)
 				{
-					// Determine crime / dealer rates.
-					// With LSR loaded: use the gang profile for this zone.
-					// Without LSR: fall back to flat 20% criminal / 25% dealer.
-					int crimChance  = 20;
+					// Determine crime / dealer rates and zone aggression tier.
+					// With LSR loaded: use gang profile + economy.
+					// Without LSR: use tier derived purely from hardcoded zone table.
+					int crimChance   = 20;
 					int dealerChance = 25;
+					int aggrTier     = 2; // default medium
 
 					if (LSRData::IsAvailable)
 					{
@@ -2897,42 +3056,70 @@ Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 						brain->ZoneEconomy = LSRData::GetEconomyCode(
 							LSRData::GetEconomyForZone(zoneName));
 
+						aggrTier = GetZoneAggressionTier(zoneName);
+
+						const LSRGangProfile* gp = nullptr;
 						if (!brain->GangID.empty())
 						{
-							// In gang territory: pull crime/dealer rates from the gang profile.
-							const LSRGangProfile* gp = LSRData::GetGangProfile(brain->GangID);
+							gp = LSRData::GetGangProfile(brain->GangID);
 							if (gp)
 							{
-								// FightPercentage drives how many members are "criminal" in PZ.
-								// Cap at 75 so we don't make every ped in a territory hostile.
 								crimChance   = min(gp->fightPercentage, 75);
 								dealerChance = gp->drugDealerPercentage;
 							}
 						}
 						else
 						{
-							// Non-gang zone: scale by area economy.
-							// Poor areas have higher crime; rich areas much lower.
-							if (brain->ZoneEconomy == 1)      { crimChance = 35; dealerChance = 40; }
+							// Non-gang zone: scale by economy.
+							if      (brain->ZoneEconomy == 1) { crimChance = 35; dealerChance = 40; }
 							else if (brain->ZoneEconomy == 3) { crimChance =  8; dealerChance = 10; }
 						}
 
 						// Set schedule phase from current in-game hour.
 						int h = TIME::GET_CLOCK_HOURS();
-						if      (h >= 6  && h < 12) brain->SchedulePhase = 0; // Morning
-						else if (h >= 12 && h < 18) brain->SchedulePhase = 1; // Afternoon
-						else if (h >= 18 && h < 22) brain->SchedulePhase = 2; // Evening
-						else                         brain->SchedulePhase = 3; // Night
+						if      (h >= 6  && h < 12) brain->SchedulePhase = 0;
+						else if (h >= 12 && h < 18) brain->SchedulePhase = 1;
+						else if (h >= 18 && h < 22) brain->SchedulePhase = 2;
+						else                         brain->SchedulePhase = 3;
+
+						if (RandomInt(1, 100) <= crimChance)
+						{
+							brain->IsCriminal = true;
+							if (RandomInt(1, 100) <= dealerChance)
+								brain->IsDealer = true;
+
+							// Arm the criminal — weapon given holstered (no draw, no wanted level).
+							ArmCriminalPed(brain, gp);
+						}
+					}
+					else
+					{
+						// Standalone mode: use zone table for aggression; flat rates for crime.
+						Vector3 spawnPos = ENTITY::GET_ENTITY_COORDS(brain->ThisPed, true);
+						std::string zoneName = std::string(ZONE::GET_NAME_OF_ZONE(
+							spawnPos.x, spawnPos.y, spawnPos.z));
+						aggrTier = GetZoneAggressionTier(zoneName);
+
+						if (RandomInt(1, 100) <= crimChance)
+						{
+							brain->IsCriminal = true;
+							if (RandomInt(1, 100) <= dealerChance)
+								brain->IsDealer = true;
+							ArmCriminalPed(brain, nullptr);
+						}
 					}
 
-					// CrimeTimer is staggered so crimes don't all fire at once after a spawn wave.
-					if (RandomInt(1, 100) <= crimChance)
-					{
-						brain->IsCriminal = true;
-						if (RandomInt(1, 100) <= dealerChance)
-							brain->IsDealer = true;
-						brain->CrimeTimer = InGameTime() + RandomInt(60000, 180000);
-					}
+					brain->AggressionTier = aggrTier;
+
+					// Crime cooldown timer scaled by zone aggression:
+					// Tier 3 (high-crime) = 30-60s  — things happen often in Davis/Strawberry
+					// Tier 2 (medium)     = 60-120s
+					// Tier 1 (low-crime)  = 120-240s — rare events in wealthy areas
+					int ctMin, ctMax;
+					if      (aggrTier == 3) { ctMin = 30000;  ctMax = 60000;  }
+					else if (aggrTier == 2) { ctMin = 60000;  ctMax = 120000; }
+					else                    { ctMin = 120000; ctMax = 240000; }
+					brain->CrimeTimer = InGameTime() + RandomInt(ctMin, ctMax);
 
 					PickNextAction(brain);
 					brain->FindPlayer = InGameTime() + RandomInt(45000, 90000);
@@ -4899,6 +5086,24 @@ void ProcessPZ(PlayerBrain* brain)
 										brain->WanBeFriends = true;
 										brain->ApprochPlayer = false;
 									}
+								}
+							}
+							else if (brain->IsWanted && brain->WantedTimer < GameTime)
+							{
+								// Wanted status expired — holster weapon and return to normal.
+								brain->IsWanted = false;
+								if (brain->ArmedWeaponHash != 0)
+									WEAPON::SET_CURRENT_PED_WEAPON(brain->ThisPed, GAMEPLAY::GET_HASH_KEY("WEAPON_UNARMED"), true);
+								brain->FindPlayer = GameTime + RandomInt(15000, 40000);
+								PickNextAction(brain);
+							}
+							else if (brain->IsWanted && !ENTITY::IS_ENTITY_DEAD(brain->ThisPed))
+							{
+								// While wanted: flee from the player on foot (looks like evading cops).
+								if (!brain->Driver && GameTime % 8000 < 100) // nudge flee task every ~8s
+								{
+									Vector3 pp = ENTITY::GET_ENTITY_COORDS(PLAYER::PLAYER_PED_ID(), true);
+									AI::TASK_SMART_FLEE_COORD(brain->ThisPed, pp.x, pp.y, pp.z, 100.0f, 30000, false, false);
 								}
 							}
 							else if (brain->ScenarioTimer > 0 && GameTime > brain->ScenarioTimer)

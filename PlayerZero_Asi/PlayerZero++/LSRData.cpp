@@ -377,6 +377,16 @@ const LSRLocation* LSRData::GetRobableStore() {
     return GetRandomLocation(type, -1);
 }
 
+const LSRLocation* LSRData::GetNearestLocationWithin(
+    float px, float py, float pz, const std::string& typeName, float maxDist)
+{
+    const LSRLocation* nearest = GetNearestLocation(px, py, pz, typeName);
+    if (!nearest) return nullptr;
+    float dx = nearest->x - px, dy = nearest->y - py;
+    float distSq = dx*dx + dy*dy;
+    return (distSq <= maxDist * maxDist) ? nearest : nullptr;
+}
+
 int LSRData::LocationCount(const std::string& typeName) {
     if (!IsAvailable) return 0;
     auto it = Locations.find(typeName);
