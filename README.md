@@ -67,6 +67,31 @@ Change Log
 ---- Fork Changes by idiotsandwich93 ----
 
 
+-- v21: LSR Data Integration — Zone-Aware NPC Simulation --
+
+- Added LSRData module (LSRData.h / LSRData.cpp) that reads Los Santos RED's XML files at
+  startup: GangTerritories.xml, Zones.xml, Gangs.xml, and Locations.xml. All data is loaded
+  once and queried at runtime — no live dependency on LSR, no timing issues with Shift+F10.
+- LSR is now an optional enhancement. If plugins/LosSantosRED/ is not found, the mod runs in
+  standalone mode with all existing behavior unchanged. A startup notification confirms which
+  mode is active.
+- Zone-aware crime rates: spawned NPCs now check the GTA zone they appear in against LSR's
+  GangTerritories.xml. If the zone belongs to a gang, that gang's FightPercentage and
+  DrugDealerPercentage (from Gangs.xml) drive how many PZ peds in that area are criminal or
+  dealing. Gang territory NPCs behave statistically like real LSR gang members.
+- Economy-scaled crime in non-gang zones: areas classified as Poor (from Zones.xml) get higher
+  crime rates (35% criminal / 40% dealer); Rich zones get much lower rates (8% / 10%); Middle
+  zones stay at the v19 defaults.
+- Time-of-day location routing via Locations.xml: PickNextAction() now routes NPCs to actual
+  LSR-defined map locations based on the current in-game hour. Evening/night NPCs walk to bars;
+  daytime NPCs head to restaurants or gas stations; dealer NPCs route to illicit marketplaces.
+  Falls back gracefully to the static hotspot list when LSR is not present.
+- Added GangID, ZoneEconomy, IsWanted, WantedTimer, and SchedulePhase fields to PlayerBrain
+  struct to track per-NPC LSR state across ticks.
+- GetGangGroupForZone() now reads live territory data from LSRData instead of the previous
+  hardcoded map. The hardcoded map is kept as a fallback for standalone mode.
+
+
 -- v20: Removed Custom Drug Buy Prompt --
 
 - Removed the custom [E] Buy ($50) drug purchase prompt added in v19. Drug buying and selling

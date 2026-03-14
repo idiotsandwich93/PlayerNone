@@ -9,6 +9,7 @@
   <ItemGroup>
     <ClCompile Include="GtaVMenu.cpp" />
     <ClCompile Include="keyboard.cpp" />
+    <ClCompile Include="LSRData.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PZSys.cpp" />
     <ClCompile Include="script.cpp" />
@@ -21,6 +22,7 @@
     <ClInclude Include="..\inc\types.h" />
     <ClInclude Include="filesystem.hpp" />
     <ClInclude Include="GtaVMenu.h" />
+    <ClInclude Include="LSRData.h" />
     <ClInclude Include="PZSys.h" />
     <ClInclude Include="keyboard.h" />
     <ClInclude Include="script.h" />

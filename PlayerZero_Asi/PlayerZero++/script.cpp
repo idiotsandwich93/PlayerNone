@@ -6,6 +6,7 @@
 #include "script.h"
 #include "keyboard.h"
 #include "PZSys.h"
+#include "LSRData.h"
 
 using namespace PZSys;
 using namespace PZClass;
@@ -396,6 +397,14 @@ void LoadinData()
 
 	CleanOutOldCalls();
 	LoadContacts();
+
+	// Detect and load LSR data files for enhanced NPC simulation.
+	// If LSR is not installed the mod runs in standalone mode — nothing breaks.
+	LSRData::Init("plugins/LosSantosRED");
+	if (LSRData::IsAvailable)
+		GVM::BottomLeft("~g~[PZ]~s~ LSR detected — enhanced NPC simulation active");
+	else
+		GVM::BottomLeft("~y~[PZ]~s~ Running in standalone mode (LSR not found)");
 }
 
 bool GotThatName(const std::vector<std::string>& listing, const std::string& name)
@@ -1499,53 +1508,62 @@ void AddSenario(Ped peddy, const std::string& senareo, Vector4 pos, bool sitDown
 // Returns 0 if the zone has no gang territory mapping.
 Hash GetGangGroupForZone(Ped peddy)
 {
-	Vector3 pos = ENTITY::GET_ENTITY_COORDS(peddy, true);
+	Vector3 pos  = ENTITY::GET_ENTITY_COORDS(peddy, true);
 	std::string zone = std::string(ZONE::GET_NAME_OF_ZONE(pos.x, pos.y, pos.z));
 
-	// Zone -> gang ID mapping sourced from LSR's GangTerritories.xml (base + LSRed&Blue)
-	static const std::unordered_map<std::string, std::string> ZoneGangMap = {
-		{ "DAVIS",   "AMBIENT_GANG_BALLAS"    },
-		{ "SKID",    "AMBIENT_GANG_BALLAS"    },
-		{ "TEXTI",   "AMBIENT_GANG_BALLAS"    },
-		{ "EAST_V",  "AMBIENT_GANG_LOST"      },
-		{ "MIRR",    "AMBIENT_GANG_LOST"      },
-		{ "PALFOR",  "AMBIENT_GANG_LOST"      },
-		{ "SLAB",    "AMBIENT_GANG_LOST"      },
-		{ "EBURO",   "AMBIENT_GANG_MARABUNTE" },
-		{ "MURRI",   "AMBIENT_GANG_MARABUNTE" },
-		{ "CHAMH",   "AMBIENT_GANG_FAMILY"    },
-		{ "STRAW",   "AMBIENT_GANG_FAMILY"    },
-		{ "RANCHO",  "AMBIENT_GANG_MEXICAN"   },
-		{ "SANAND",  "AMBIENT_GANG_MEXICAN"   },
-		{ "CYPRE",   "AMBIENT_GANG_MEXICAN"   },
-		{ "STAD",    "AMBIENT_GANG_SALVA"     },
-		{ "DTVINE",  "AMBIENT_GANG_GAMBETTI"  },
-		{ "WVINE",   "AMBIENT_GANG_GAMBETTI"  },
-		{ "LMESA",   "AMBIENT_GANG_MADRAZO"   },
-		{ "CHIL",    "AMBIENT_GANG_MADRAZO"   },
-		{ "KOREAT",  "AMBIENT_GANG_KKANGPAE"  },
-		{ "VCANA",   "AMBIENT_GANG_KKANGPAE"  },
-		{ "LEGSQU",  "AMBIENT_GANG_WEICHENG"  },
-		{ "PBOX",    "AMBIENT_GANG_WEICHENG"  },
-		{ "LOSPUER", "AMBIENT_GANG_ARMENIAN"  },
-		{ "BEACH",   "AMBIENT_GANG_YARDIES"   },
-		{ "DELSOL",  "AMBIENT_GANG_YARDIES"   },
-		{ "ELYSIAN", "AMBIENT_GANG_DIABLOS"   },
-		{ "GRAPES",  "AMBIENT_GANG_PAVANO"    },
-		{ "RICHM",   "AMBIENT_GANG_MESSINA"   },
-		{ "CHU",     "AMBIENT_GANG_ANCELOTTI" },
-		{ "ALAMO",   "AMBIENT_GANG_HILLBILLY" },
-		{ "SANDY",   "AMBIENT_GANG_HILLBILLY" },
-		{ "DESRT",   "AMBIENT_GANG_ANGELS"    },
-		{ "HARMO",   "AMBIENT_GANG_ANGELS"    },
-		{ "PALETO",  "AMBIENT_GANG_LUPISELLA" },
-	};
+	std::string gangID;
 
-	auto it = ZoneGangMap.find(zone);
-	if (it == ZoneGangMap.end()) return 0;
+	// Prefer live data read from LSR's GangTerritories.xml at startup.
+	if (LSRData::IsAvailable)
+		gangID = LSRData::GetGangForZone(zone);
+
+	// Fallback hardcoded map used when LSR is not installed.
+	if (gangID.empty()) {
+		static const std::unordered_map<std::string, std::string> FallbackMap = {
+			{ "DAVIS",   "AMBIENT_GANG_BALLAS"    },
+			{ "SKID",    "AMBIENT_GANG_BALLAS"    },
+			{ "TEXTI",   "AMBIENT_GANG_BALLAS"    },
+			{ "EAST_V",  "AMBIENT_GANG_LOST"      },
+			{ "MIRR",    "AMBIENT_GANG_LOST"      },
+			{ "PALFOR",  "AMBIENT_GANG_LOST"      },
+			{ "SLAB",    "AMBIENT_GANG_LOST"      },
+			{ "EBURO",   "AMBIENT_GANG_MARABUNTE" },
+			{ "MURRI",   "AMBIENT_GANG_MARABUNTE" },
+			{ "CHAMH",   "AMBIENT_GANG_FAMILY"    },
+			{ "STRAW",   "AMBIENT_GANG_FAMILY"    },
+			{ "RANCHO",  "AMBIENT_GANG_MEXICAN"   },
+			{ "SANAND",  "AMBIENT_GANG_MEXICAN"   },
+			{ "CYPRE",   "AMBIENT_GANG_MEXICAN"   },
+			{ "STAD",    "AMBIENT_GANG_SALVA"     },
+			{ "DTVINE",  "AMBIENT_GANG_GAMBETTI"  },
+			{ "WVINE",   "AMBIENT_GANG_GAMBETTI"  },
+			{ "LMESA",   "AMBIENT_GANG_MADRAZO"   },
+			{ "CHIL",    "AMBIENT_GANG_MADRAZO"   },
+			{ "KOREAT",  "AMBIENT_GANG_KKANGPAE"  },
+			{ "VCANA",   "AMBIENT_GANG_KKANGPAE"  },
+			{ "LEGSQU",  "AMBIENT_GANG_WEICHENG"  },
+			{ "PBOX",    "AMBIENT_GANG_WEICHENG"  },
+			{ "LOSPUER", "AMBIENT_GANG_ARMENIAN"  },
+			{ "BEACH",   "AMBIENT_GANG_YARDIES"   },
+			{ "DELSOL",  "AMBIENT_GANG_YARDIES"   },
+			{ "ELYSIAN", "AMBIENT_GANG_DIABLOS"   },
+			{ "GRAPES",  "AMBIENT_GANG_PAVANO"    },
+			{ "RICHM",   "AMBIENT_GANG_MESSINA"   },
+			{ "CHU",     "AMBIENT_GANG_ANCELOTTI" },
+			{ "ALAMO",   "AMBIENT_GANG_HILLBILLY" },
+			{ "SANDY",   "AMBIENT_GANG_HILLBILLY" },
+			{ "DESRT",   "AMBIENT_GANG_ANGELS"    },
+			{ "HARMO",   "AMBIENT_GANG_ANGELS"    },
+			{ "PALETO",  "AMBIENT_GANG_LUPISELLA" },
+		};
+		auto it = FallbackMap.find(zone);
+		if (it != FallbackMap.end()) gangID = it->second;
+	}
+
+	if (gangID.empty()) return 0;
 
 	Hash gangHash = -1;
-	PED::ADD_RELATIONSHIP_GROUP((LPSTR)it->second.c_str(), &gangHash);
+	PED::ADD_RELATIONSHIP_GROUP((LPSTR)gangID.c_str(), &gangHash);
 	return gangHash;
 }
 
@@ -1755,16 +1773,55 @@ void PickNextAction(PlayerBrain* brain)
 		// Brief standing animation (smoking, leaning, phone, etc.)
 		DoAmbientScenario(brain);
 	}
+	else if (LSRData::IsAvailable)
+	{
+		// Route to a time-of-day appropriate LSR location.
+		// Night-shift peds head to bars; daytime head to restaurants/gas stations.
+		int hour = TIME::GET_CLOCK_HOURS();
+		const LSRLocation* dest = nullptr;
+
+		if (brain->SchedulePhase == 3 || brain->SchedulePhase == 2)
+			dest = LSRData::GetNightlifeLocation(hour);
+		else if (brain->IsDealer)
+			dest = LSRData::GetRandomLocation("IllicitMarketplace", -1);
+		else
+			dest = LSRData::GetRandomLocation(hour < 12 ? "GasStation" : "Restaurant", -1);
+
+		if (dest != nullptr)
+		{
+			Vector3 v; v.x = dest->x; v.y = dest->y; v.z = dest->z;
+			WalkHere(peddy, v);
+			brain->ShopTimer = InGameTime() + RandomInt(20000, 40000);
+		}
+		else
+		{
+			// LSR had no matching open location — fall back to known hotspot list
+			if (!PlayerHotspots.empty())
+			{
+				int iSpot = RandomInt(0, (int)PlayerHotspots.size() - 1);
+				WalkHere(peddy, PlayerHotspots[iSpot]);
+				brain->ShopTimer = InGameTime() + RandomInt(20000, 40000);
+			}
+			else
+			{
+				AI::CLEAR_PED_TASKS(peddy);
+				AI::TASK_WANDER_STANDARD(peddy, 10.0f, 10);
+				PED::SET_PED_KEEP_TASK(peddy, true);
+				PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(peddy, false);
+				brain->ScenarioTimer = InGameTime() + RandomInt(20000, 45000);
+			}
+		}
+	}
 	else if (!PlayerHotspots.empty())
 	{
-		// Walk to a known map hotspot (bar, ATM, corner store, etc.)
+		// Standalone mode: use static hotspot list
 		int iSpot = RandomInt(0, (int)PlayerHotspots.size() - 1);
 		WalkHere(peddy, PlayerHotspots[iSpot]);
 		brain->ShopTimer = InGameTime() + RandomInt(20000, 40000);
 	}
 	else
 	{
-		// Fallback: ambient wander
+		// Last resort: ambient wander
 		AI::CLEAR_PED_TASKS(peddy);
 		AI::TASK_WANDER_STANDARD(peddy, 10.0f, 10);
 		PED::SET_PED_KEEP_TASK(peddy, true);
@@ -2821,12 +2878,55 @@ Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 				// immediately override the just-assigned task (FindPlayer defaults to 0).
 				if (!brain->Driver && !brain->Passenger && !brain->Follower)
 				{
-					// 20% of on-foot peds are criminals; 25% of those are drug dealers.
+					// Determine crime / dealer rates.
+					// With LSR loaded: use the gang profile for this zone.
+					// Without LSR: fall back to flat 20% criminal / 25% dealer.
+					int crimChance  = 20;
+					int dealerChance = 25;
+
+					if (LSRData::IsAvailable)
+					{
+						Vector3 spawnPos = ENTITY::GET_ENTITY_COORDS(brain->ThisPed, true);
+						std::string zoneName = std::string(ZONE::GET_NAME_OF_ZONE(
+							spawnPos.x, spawnPos.y, spawnPos.z));
+
+						brain->GangID      = LSRData::GetGangForZone(zoneName);
+						brain->ZoneEconomy = LSRData::GetEconomyCode(
+							LSRData::GetEconomyForZone(zoneName));
+
+						if (!brain->GangID.empty())
+						{
+							// In gang territory: pull crime/dealer rates from the gang profile.
+							const LSRGangProfile* gp = LSRData::GetGangProfile(brain->GangID);
+							if (gp)
+							{
+								// FightPercentage drives how many members are "criminal" in PZ.
+								// Cap at 75 so we don't make every ped in a territory hostile.
+								crimChance   = min(gp->fightPercentage, 75);
+								dealerChance = gp->drugDealerPercentage;
+							}
+						}
+						else
+						{
+							// Non-gang zone: scale by area economy.
+							// Poor areas have higher crime; rich areas much lower.
+							if (brain->ZoneEconomy == 1)      { crimChance = 35; dealerChance = 40; }
+							else if (brain->ZoneEconomy == 3) { crimChance =  8; dealerChance = 10; }
+						}
+
+						// Set schedule phase from current in-game hour.
+						int h = TIME::GET_CLOCK_HOURS();
+						if      (h >= 6  && h < 12) brain->SchedulePhase = 0; // Morning
+						else if (h >= 12 && h < 18) brain->SchedulePhase = 1; // Afternoon
+						else if (h >= 18 && h < 22) brain->SchedulePhase = 2; // Evening
+						else                         brain->SchedulePhase = 3; // Night
+					}
+
 					// CrimeTimer is staggered so crimes don't all fire at once after a spawn wave.
-					if (RandomInt(1, 100) <= 20)
+					if (RandomInt(1, 100) <= crimChance)
 					{
 						brain->IsCriminal = true;
-						if (RandomInt(1, 100) <= 25)
+						if (RandomInt(1, 100) <= dealerChance)
 							brain->IsDealer = true;
 						brain->CrimeTimer = InGameTime() + RandomInt(60000, 180000);
 					}

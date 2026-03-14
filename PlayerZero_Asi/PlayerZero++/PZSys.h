@@ -319,13 +319,21 @@ namespace PZClass
 		bool IsCriminal;
 		bool IsDealer;
 		int CrimeTimer;
+
+		// LSR integration fields
+		std::string GangID;        // e.g. "AMBIENT_GANG_BALLAS" — zone's gang from LSR
+		int ZoneEconomy;           // 0=unknown, 1=Poor, 2=Middle, 3=Rich
+		bool IsWanted;             // ped currently has a wanted level and is fleeing
+		int WantedTimer;           // game time when wanted status expires
+		int SchedulePhase;         // 0=Morning, 1=Afternoon, 2=Evening, 3=Night
+
 		std::string MyName;
 		std::string MyIdentity;
 		ClothBank PFMySetting; 
 
 	public:
 		PlayerBrain(std::string name, std::string id, ClothBank pedCloth, int timeOn, int level, bool inContact, bool isMobileCont, int nationality, int gunSelect, int preVehicle, std::string faveVehicle, int faveRadio)
-			: ThisPed(NULL), ThisEnemy(NULL), ThisVeh(NULL), Oppressor(NULL), XmasTree(NULL), ThisBlip(NULL), MoneyDrops(MoneyBags()), DirBlip(true), DeathSequence(0), DeathTime(0), Kills(0), Killed(0), TimeOn(timeOn), FindPlayer(0), ShopTimer(0), ScenarioTimer(0), PlaneLand(-1), OffRadar(0), FlightPath(0), Nationality(nationality), IsAnimal(false), EWO(false), YoDeeeed(false), OffRadarBool(false), Bounty(false), InCombat(false), SessionJumper(false), DropMoneyBags(false), Horny(false), Driver(false), Passenger(false), WanBeFriends(false), ApprochPlayer(true), IsPlane(false), IsHeli(false), IsInContacts(inContact), IsMobileCont(isMobileCont), SessionGreating(true), PiggyBackin(false), TimeToGo(false), SessionPilot(false), GrabVeh(false), IsSpecialPed(false), PlayerInVeh(false), HeadTag(0), BlipColour(0), Level(level), PrefredVehicle(preVehicle), FaveVehicle(faveVehicle), GunSelect(gunSelect), FaveRadio(faveRadio), EnemyPos(1.0f), BusDriver(false), RentaCop(false), TheHacker(false), AirTranspport(false), Friendly(true), Follower(false), IsCriminal(false), IsDealer(false), CrimeTimer(0), AtTheParty(false), StayInVeh(false), RadioHeads(true), HackReaction(false), MyName(name), MyIdentity(id), PFMySetting(pedCloth) {}
+			: ThisPed(NULL), ThisEnemy(NULL), ThisVeh(NULL), Oppressor(NULL), XmasTree(NULL), ThisBlip(NULL), MoneyDrops(MoneyBags()), DirBlip(true), DeathSequence(0), DeathTime(0), Kills(0), Killed(0), TimeOn(timeOn), FindPlayer(0), ShopTimer(0), ScenarioTimer(0), PlaneLand(-1), OffRadar(0), FlightPath(0), Nationality(nationality), IsAnimal(false), EWO(false), YoDeeeed(false), OffRadarBool(false), Bounty(false), InCombat(false), SessionJumper(false), DropMoneyBags(false), Horny(false), Driver(false), Passenger(false), WanBeFriends(false), ApprochPlayer(true), IsPlane(false), IsHeli(false), IsInContacts(inContact), IsMobileCont(isMobileCont), SessionGreating(true), PiggyBackin(false), TimeToGo(false), SessionPilot(false), GrabVeh(false), IsSpecialPed(false), PlayerInVeh(false), HeadTag(0), BlipColour(0), Level(level), PrefredVehicle(preVehicle), FaveVehicle(faveVehicle), GunSelect(gunSelect), FaveRadio(faveRadio), EnemyPos(1.0f), BusDriver(false), RentaCop(false), TheHacker(false), AirTranspport(false), Friendly(true), Follower(false), IsCriminal(false), IsDealer(false), CrimeTimer(0), GangID(""), ZoneEconomy(0), IsWanted(false), WantedTimer(0), SchedulePhase(0), AtTheParty(false), StayInVeh(false), RadioHeads(true), HackReaction(false), MyName(name), MyIdentity(id), PFMySetting(pedCloth) {}
 	};
 	class PhoneContact
 	{
