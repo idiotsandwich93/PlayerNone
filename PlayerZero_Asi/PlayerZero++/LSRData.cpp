@@ -261,7 +261,12 @@ void LSRData::Init(const std::string& lsrRoot) {
     // Quick sentinel check — if Locations.xml isn't here LSR isn't installed.
     {
         std::ifstream check(lsrRoot + "/Locations.xml");
-        if (!check.is_open()) return;
+        if (!check.is_open()) {
+            // Write to PZ log directly (no PZSys dependency).
+            std::ofstream log("PlayerZero/LoggerLight.txt", std::ios::app);
+            if (log) log << "[LSRData] Locations.xml not found at: " << lsrRoot << "\n";
+            return;
+        }
     }
 
     LoadTerritories(lsrRoot + "/GangTerritories.xml");
@@ -270,6 +275,21 @@ void LSRData::Init(const std::string& lsrRoot) {
     LoadLocations  (lsrRoot + "/Locations.xml");
 
     IsAvailable = true;
+
+    // Diagnostic summary so we can confirm the right data was loaded.
+    {
+        std::ofstream log("PlayerZero/LoggerLight.txt", std::ios::app);
+        if (log) {
+            log << "[LSRData] Loaded OK — "
+                << "Zones: "       << ZoneGangMap.size()
+                << ", Gangs: "     << GangProfiles.size()
+                << ", EconZones: " << ZoneEconomyMap.size()
+                << ", Restaurants: " << Locations["Restaurant"].size()
+                << ", Bars: "        << Locations["Bar"].size()
+                << ", GangDens: "    << Locations["GangDen"].size()
+                << "\n";
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

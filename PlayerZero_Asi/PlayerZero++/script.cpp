@@ -400,11 +400,14 @@ void LoadinData()
 
 	// Detect and load LSR data files for enhanced NPC simulation.
 	// If LSR is not installed the mod runs in standalone mode — nothing breaks.
+	// NOTE: notification is deliberately deferred — it fires in the main loop once
+	// the player is in control, not here during the loading screen where it would
+	// be invisible.
 	LSRData::Init("plugins/LosSantosRED");
 	if (LSRData::IsAvailable)
-		GVM::BottomLeft("~g~[PZ]~s~ LSR detected — enhanced NPC simulation active");
+		LoggerLight("LSRData: loaded — enhanced NPC simulation active");
 	else
-		GVM::BottomLeft("~y~[PZ]~s~ Running in standalone mode (LSR not found)");
+		LoggerLight("LSRData: LSR not found — running in standalone mode");
 }
 
 bool GotThatName(const std::vector<std::string>& listing, const std::string& name)
@@ -6725,9 +6728,18 @@ void main()
 				StartTheMod = false;
 				LoadinData();
 
+				// Show LSR detection result 8 seconds after load — player is in
+				// control by then and will actually see it (not buried in the
+				// loading screen transition).
+				WAIT(8000);
+				if (LSRData::IsAvailable)
+					GVM::BottomLeft("~g~[PZ]~s~ LSR detected — enhanced mode active");
+				else
+					GVM::BottomLeft("~y~[PZ]~s~ Standalone mode (LSR not found)");
+
 				if (FirstRun)
 				{
-					WAIT(15000);
+					WAIT(7000);
 					ShitTalk.push_back(ShitTalking(PZTranslate[0], InGameTime() + 10000));
 					ShitTalk.push_back(ShitTalking("", InGameTime() + 10000));
 					ShitTalk.push_back(ShitTalking(PZTranslate[1], InGameTime() + 10000));
