@@ -67,6 +67,20 @@ Change Log
 ---- Fork Changes by idiotsandwich93 ----
 
 
+-- v23: Store Robbery Sequence --
+
+- Added DoStoreRobbery(): three-phase sequence driven by existing timers.
+  Phase 1 — criminal walks to the nearest ConvenienceStore or LiquorStore
+  within 200m (sourced from LSR's Locations.xml). Phase 2 — on arrival,
+  equips their armed weapon and aims it forward using TASK_AIM_GUN_AT_COORD
+  for 8-14 seconds (visually holds the clerk at gunpoint). Phase 3 — holsters
+  weapon and flees via TASK_SMART_FLEE_COORD, IsWanted set for 45 seconds.
+  Falls back gracefully to no-op if LSR is not installed or no store is nearby.
+- Store robbery rolls as a crime action alongside carjack, fight, and deal.
+  Long cooldown (4x the zone timer) so it does not fire too frequently.
+- Added RobPhase field (0-3) to PlayerBrain to track robbery state across ticks.
+
+
 -- v22: Visible Criminal Behavior — Armed Peds, Fights, Zone Aggression --
 
 - Criminal peds now spawn with weapons that match their zone's gang profile

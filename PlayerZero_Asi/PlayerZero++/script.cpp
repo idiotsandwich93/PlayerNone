@@ -1850,6 +1850,32 @@ void DoDrugDeal(PlayerBrain* brain)
 // After a scenario or shop visit expires, pick the next thing the NPC should do.
 // Criminal peds (IsCriminal) get a chance to carjack or deal drugs when their CrimeTimer has elapsed.
 // Weighted for civilians: 50% ambient wander, 20% walk to shop, 15% brief scenario, 15% walk to hotspot.
+// Phase 1: Walk the criminal ped to the nearest robbable store within 200m.
+// Phase 2 (triggered by ShopTimer expiry in ProcessPZ): draw weapon and hold.
+// Phase 3 (triggered by ScenarioTimer expiry): holster, sprint flee, IsWanted.
+// If no store is within range the function does nothing and returns false.
+bool DoStoreRobbery(PlayerBrain* brain)
+{
+	if (!LSRData::IsAvailable) return false;
+
+	Ped peddy = brain->ThisPed;
+	Vector3 pos = ENTITY::GET_ENTITY_COORDS(peddy, true);
+
+	// Try ConvenienceStore first, fall back to LiquorStore
+	const LSRLocation* store =
+		LSRData::GetNearestLocationWithin(pos.x, pos.y, pos.z, "ConvenienceStore", 200.0f);
+	if (!store)
+		store = LSRData::GetNearestLocationWithin(pos.x, pos.y, pos.z, "LiquorStore", 200.0f);
+	if (!store) return false;
+
+	// Phase 1: walk to the store entrance
+	Vector3 v; v.x = store->x; v.y = store->y; v.z = store->z;
+	WalkHere(peddy, v);
+	brain->RobPhase  = 1;
+	brain->ShopTimer = InGameTime() + RandomInt(18000, 28000); // time to walk there
+	return true;
+}
+
 void PickNextAction(PlayerBrain* brain)
 {
 	Ped peddy = brain->ThisPed;
@@ -1893,6 +1919,17 @@ void PickNextAction(PlayerBrain* brain)
 			DoDrugDeal(brain);
 			brain->CrimeTimer = InGameTime() + RandomInt(ctMin, ctMax);
 			return;
+		}
+		else if (crimeRoll <= fightThresh + 25 && brain->RobPhase == 0)
+		{
+			// Attempt a store robbery — walks to nearest ConvenienceStore/LiquorStore
+			// within 200m. Phase 2 (draw weapon) and phase 3 (flee) are handled by
+			// the ShopTimer and ScenarioTimer checks in ProcessPZ.
+			if (DoStoreRobbery(brain))
+			{
+				brain->CrimeTimer = InGameTime() + RandomInt(ctMin * 4, ctMax * 4);
+				return;
+			}
 		}
 		// Fall through: no action this tick, reset timer.
 		brain->CrimeTimer = InGameTime() + RandomInt(ctMin, ctMax);
@@ -5108,17 +5145,53 @@ void ProcessPZ(PlayerBrain* brain)
 							}
 							else if (brain->ScenarioTimer > 0 && GameTime > brain->ScenarioTimer)
 							{
-								// Scenario timed out - pick a new action so the NPC does not idle forever
-								brain->ScenarioTimer = 0;
-								brain->FindPlayer = GameTime + RandomInt(15000, 40000);
-								PickNextAction(brain);
+								// Robbery phase 3: ScenarioTimer expired while robbing -- holster, flee.
+								if (brain->RobPhase == 2)
+								{
+									brain->RobPhase = 3;
+									if (brain->ArmedWeaponHash != 0)
+									    WEAPON::SET_CURRENT_PED_WEAPON(brain->ThisPed,
+									        GAMEPLAY::GET_HASH_KEY("WEAPON_UNARMED"), true);
+									Vector3 pp = ENTITY::GET_ENTITY_COORDS(PLAYER::PLAYER_PED_ID(), true);
+									AI::TASK_SMART_FLEE_COORD(brain->ThisPed,
+									    pp.x, pp.y, pp.z, 150.0f, 30000, false, false);
+									brain->IsWanted      = true;
+									brain->WantedTimer   = GameTime + 45000;
+									brain->ScenarioTimer = 0;
+								}
+								else
+								{
+									// Normal scenario timeout -- pick a new action
+									brain->ScenarioTimer = 0;
+									brain->FindPlayer = GameTime + RandomInt(15000, 40000);
+									PickNextAction(brain);
+								}
 							}
 							else if (brain->ShopTimer > 0 && GameTime > brain->ShopTimer)
 							{
-								// NPC has been in shop long enough - give them a new task and reset timer
-								brain->ShopTimer = 0;
-								brain->FindPlayer = GameTime + RandomInt(30000, 60000);
-								PickNextAction(brain);
+								// Robbery phase 2: ped arrived at the store -- draw weapon, hold briefly.
+								if (brain->RobPhase == 1)
+								{
+									brain->RobPhase = 2;
+									Ped peddy = brain->ThisPed;
+									if (brain->ArmedWeaponHash != 0)
+									    WEAPON::SET_CURRENT_PED_WEAPON(peddy, brain->ArmedWeaponHash, true);
+									Vector3 pos = ENTITY::GET_ENTITY_COORDS(peddy, true);
+									float hdg  = ENTITY::GET_ENTITY_HEADING(peddy) * 0.0174533f;
+									float aimX = pos.x + cosf(hdg) * 3.0f;
+									float aimY = pos.y + sinf(hdg) * 3.0f;
+									AI::TASK_AIM_GUN_AT_COORD(peddy, aimX, aimY, pos.z, 10000, false, false);
+									brain->ShopTimer     = 0;
+									brain->ScenarioTimer = GameTime + RandomInt(8000, 14000);
+								}
+								else
+								{
+									// Normal shop visit complete -- pick a new action
+									brain->ShopTimer  = 0;
+									brain->RobPhase   = 0;
+									brain->FindPlayer = GameTime + RandomInt(30000, 60000);
+									PickNextAction(brain);
+								}
 							}
 							else if (brain->FindPlayer < GameTime)
 							{
