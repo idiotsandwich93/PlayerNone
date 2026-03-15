@@ -182,6 +182,7 @@ void LSRData::LoadLocations(const std::string& path) {
     int  posState    = 0; // 0=waiting for EntrancePosition, 1=gotX, 2=gotXY, 3=complete
     float curX = 0, curY = 0, curZ = 0;
     int   curOpen = 0, curClose = 24;
+    std::string curGangID;
 
     std::string line;
     while (std::getline(f, line)) {
@@ -216,6 +217,7 @@ void LSRData::LoadLocations(const std::string& path) {
             curX = curY = curZ = 0.0f;
             curOpen   = 0;
             curClose  = 24;
+            curGangID.clear();
             continue;
         }
 
@@ -224,6 +226,7 @@ void LSRData::LoadLocations(const std::string& path) {
             if (posState == 3) { // we captured a valid position
                 LSRLocation loc;
                 loc.typeName  = currentItem;
+                loc.gangID    = curGangID;
                 loc.x         = curX;
                 loc.y         = curY;
                 loc.z         = curZ;
@@ -257,6 +260,10 @@ void LSRData::LoadLocations(const std::string& path) {
             curOpen  = GetTagInt(line, "OpenTime");
         if (line.find("<CloseTime>") != std::string::npos)
             curClose = GetTagInt(line, "CloseTime");
+        // GangDen only: capture which gang owns this den.
+        if (currentItem == "GangDen" &&
+            line.find("<AssignedAssociationID>") != std::string::npos)
+            curGangID = GetTagValue(line, "AssignedAssociationID");
     }
 }
 
@@ -300,6 +307,37 @@ void LSRData::Init(const std::string& lsrRoot) {
                 << ", Bars: "        << Locations["Bar"].size()
                 << ", GangDens: "    << Locations["GangDen"].size()
                 << "\n";
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Liberty City Preservation Project (LPP) — merge LC data if files are present.
+    // LC zone internal names differ from LS names, so zone/gang/economy lookups
+    // automatically return the right data for whichever map the player is on.
+    // LoadGangPeds/Vehicles re-use the same loader; LC gangs are now in GangProfiles
+    // so the group→model mapping resolves correctly for LC personnel/vehicle groups.
+    // ---------------------------------------------------------------------------
+    {
+        std::ifstream lppCheck(lsrRoot + "/Gangs_LPP.xml");
+        if (lppCheck.is_open()) {
+            lppCheck.close();
+
+            LoadTerritories (lsrRoot + "/GangTerritories_LPP.xml");
+            LoadZones       (lsrRoot + "/Zones_LPP.xml");
+            LoadGangs       (lsrRoot + "/Gangs_LPP.xml");
+            LoadLocations   (lsrRoot + "/Locations_LPP.xml");
+            LoadGangPeds    (lsrRoot + "/DispatchablePeople_LPP.xml");
+            LoadGangVehicles(lsrRoot + "/DispatchableVehicles_LPP.xml");
+
+            std::ofstream log("PlayerZero/LoggerLight.txt", std::ios::app);
+            if (log) {
+                log << "[LSRData] LPP merged — "
+                    << "Zones: "      << ZoneGangMap.size()
+                    << ", Gangs: "    << GangProfiles.size()
+                    << ", EconZones: "<< ZoneEconomyMap.size()
+                    << ", GangDens: " << Locations["GangDen"].size()
+                    << "\n";
+            }
         }
     }
 }
@@ -403,6 +441,31 @@ int LSRData::LocationCount(const std::string& typeName) {
     if (!IsAvailable) return 0;
     auto it = Locations.find(typeName);
     return (it != Locations.end()) ? (int)it->second.size() : 0;
+}
+
+// ---------------------------------------------------------------------------
+// IsNearGangDen — returns true if (px,py) is within radius metres of any
+// known gang den that has an AssignedAssociationID.  outGangID is set to
+// that gang ID.  Uses 2-D (X/Y) distance only — sufficient for all dens.
+// ---------------------------------------------------------------------------
+bool LSRData::IsNearGangDen(float px, float py, float pz,
+                             float radius, std::string& outGangID)
+{
+    if (!IsAvailable) return false;
+    auto it = Locations.find("GangDen");
+    if (it == Locations.end()) return false;
+
+    const float r2 = radius * radius;
+    for (const auto& loc : it->second) {
+        if (loc.gangID.empty()) continue;
+        float dx = px - loc.x;
+        float dy = py - loc.y;
+        if (dx*dx + dy*dy <= r2) {
+            outGangID = loc.gangID;
+            return true;
+        }
+    }
+    return false;
 }
 
 // ---------------------------------------------------------------------------

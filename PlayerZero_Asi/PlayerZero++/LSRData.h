@@ -39,6 +39,7 @@ struct LSRIntoxicant {
 
 struct LSRLocation {
     std::string typeName; // "GangDen", "Restaurant", "Bar", etc.
+    std::string gangID;   // AssignedAssociationID (GangDens only, e.g. "AMBIENT_GANG_BALLAS")
     float x         = 0.0f;
     float y         = 0.0f;
     float z         = 0.0f;
@@ -112,6 +113,12 @@ public:
     // Random drug/intoxicant name from Itoxicants.xml, e.g. "Marijuana", "Cocaine".
     // Returns "something" if LSR not available or file not found.
     static const std::string& GetRandomIntoxicant();
+
+    // Returns true if (px,py) is within radius metres of any known gang den.
+    // outGangID is set to the den's AssignedAssociationID when true.
+    // Only checks X/Y distance (ignores Z) — sufficient for all surface dens.
+    static bool IsNearGangDen(float px, float py, float pz,
+                               float radius, std::string& outGangID);
 
     // Random native ped model string for a gang (e.g. "g_m_y_ballasout_01").
     // Returns "" if LSR not available or gang not found.

@@ -126,6 +126,116 @@ void MoveEntity(Entity ent, Vector3 pos)
 	ENTITY::SET_ENTITY_COORDS(ent, pos.x, pos.y, pos.z, 1, 0, 0, 1);
 }
 
+// Returns outfit categories appropriate for a gang type, for freemode peds.
+// Falls back to generic civilian categories if gangID doesn't match.
+ClothX GetGangCloths(const std::string& gangID, bool male)
+{
+	LoggerLight("-GetGangCloths- " + gangID);
+
+	// Classify the gang into a style bucket.
+	// MC bikers — Lost MC, Angels of Death, Uptown Riders use biker section
+	static const std::vector<std::string> sMCGangs = {
+		"AMBIENT_GANG_LOST", "AMBIENT_GANG_ANGELS", "AMBIENT_GANG_UPTOWN"
+	};
+	// Organized crime — mob families, cartel, Asian crime use High Life / VIP / Designer
+	static const std::vector<std::string> sOrgCrimeGangs = {
+		// LS families (already present)
+		"AMBIENT_GANG_GAMBETTI", "AMBIENT_GANG_PAVANO", "AMBIENT_GANG_LUPISELLA",
+		"AMBIENT_GANG_MESSINA", "AMBIENT_GANG_ANCELOTTI",
+		"AMBIENT_GANG_ARMENIAN", "AMBIENT_GANG_WEICHENG", "AMBIENT_GANG_KKANGPAE",
+		"AMBIENT_GANG_MADRAZO",
+		// LC Italian families
+		"AMBIENT_GANG_SINDACCO", "AMBIENT_GANG_FORELLI", "AMBIENT_GANG_LEONE",
+		// LC other organized crime
+		"AMBIENT_GANG_JEWISH", "AMBIENT_GANG_PETROVIC",
+		"AMBIENT_GANG_YAKUZA", "AMBIENT_GANG_KOREAN"
+	};
+	// Redneck / rural
+	static const std::vector<std::string> sRedneckGangs = {
+		"AMBIENT_GANG_HILLBILLY"
+	};
+
+	auto inList = [&](const std::vector<std::string>& lst) {
+		for (const auto& s : lst) if (s == gangID) return true;
+		return false;
+	};
+
+	std::vector<std::string> prefixes;
+	if (inList(sMCGangs))
+	{
+		// Authentic MC biker outfits — Biker DLC (named after bikes) + Motorcycle Club styles.
+		// "MaleBiker Suits" is also picked up by this prefix but is acceptable for MC members.
+		prefixes = male
+			? std::vector<std::string>{ "MaleBiker", "MaleMotorcycle Club" }
+			: std::vector<std::string>{ "FemaleBiker", "FemaleMotorcycle Club" };
+	}
+	else if (inList(sOrgCrimeGangs))
+	{
+		// High Life (open & closed suit jackets), VIP titles, Designer, Finance & Felony, Luxury.
+		// Covers the "open high life" look the user specified for crime families / mafia.
+		prefixes = male
+			? std::vector<std::string>{ "MaleHigh Life Open", "MaleHigh Life Closed",
+				"MaleVIP", "MaleDesigner", "MaleFinance & Felony", "MaleLuxury" }
+			: std::vector<std::string>{ "FemaleDesigner", "FemaleFinance & Felony",
+				"FemaleLuxury", "FemaleBusiness Pants" };
+	}
+	else if (inList(sRedneckGangs))
+	{
+		prefixes = male
+			? std::vector<std::string>{ "MaleStandard", "MaleCasual", "MaleHipster" }
+			: std::vector<std::string>{ "FemaleStandard", "FemaleCasual", "FemaleHipster" };
+	}
+	else
+	{
+		// Street gangs (Ballas, Vagos, Families, Marabunta, Aztecas, Yardies, Diablos, etc.)
+		// Urban / gang attire: Lowrider, Lowrider Classics, Street, Import-Export.
+		prefixes = male
+			? std::vector<std::string>{ "MaleStreet", "MaleLowrider", "MaleLowrider Classics", "MaleImport-Export" }
+			: std::vector<std::string>{ "FemaleStreet", "FemaleLowrider", "FemaleLowrider Classics", "FemaleImport-Export" };
+	}
+
+	// Read the outfit folder and filter by the chosen prefixes
+	std::string folder = male ? DirectOutfitMale : DirectOutfitFemale;
+	std::vector<std::string> Files = ReadDirectory(folder);
+	std::vector<std::string> Filtered;
+	Filtered.reserve(Files.size());
+	for (const auto& fp : Files) {
+		std::string fname = fp;
+		size_t sl = fp.rfind('/');
+		size_t bs = fp.rfind('\\');
+		size_t sep = std::string::npos;
+		if (sl != std::string::npos && bs != std::string::npos) sep = sl > bs ? sl : bs;
+		else if (sl != std::string::npos) sep = sl;
+		else if (bs != std::string::npos) sep = bs;
+		if (sep != std::string::npos) fname = fp.substr(sep + 1);
+		for (const auto& prefix : prefixes) {
+			if (fname.find(prefix) == 0) { Filtered.push_back(fp); break; }
+		}
+	}
+	if (Filtered.empty()) Filtered = Files; // fallback: use everything
+
+	int Rando = LessRandomInt(male ? "GangOutfit_M" : "GangOutfit_F", 0, (int)Filtered.size() - 1);
+
+	ClothX cothing = male ? MaleDefault : FemaleDefault;
+	std::string Cloths = ""; std::vector<int> ClothA; std::vector<int> ClothB; std::vector<int> ExtraA; std::vector<int> ExtraB;
+	int intList = 0;
+	std::vector<std::string> MyColect = ReadFile(Filtered[Rando]);
+	for (int i = 0; i < (int)MyColect.size(); i++) {
+		std::string line = MyColect[i];
+		if      (StringContains("Title",       line)) { Cloths = StingNumbersInt(line); intList = 0; }
+		else if (StringContains("[ClothA]",    line)) intList = 1;
+		else if (StringContains("[ClothB]",    line)) intList = 2;
+		else if (StringContains("[ExtraA]",    line)) intList = 3;
+		else if (StringContains("[ExtraB]",    line)) intList = 4;
+		else if (intList == 1) ClothA.push_back(StingNumbersInt(line));
+		else if (intList == 2) { int v = StingNumbersInt(line); ClothB.push_back(v < 0 ? 0 : v); }
+		else if (intList == 3) ExtraA.push_back(StingNumbersInt(line));
+		else if (intList == 4) ExtraB.push_back(StingNumbersInt(line));
+	}
+	if (!ClothA.empty()) cothing = ClothX(Cloths, ClothA, ClothB, ExtraA, ExtraB);
+	return cothing;
+}
+
 ClothX GetCloths(bool male)
 {
 	LoggerLight("-GetCloths-");
@@ -142,28 +252,23 @@ ClothX GetCloths(bool male)
 
 	std::vector<std::string> Files = ReadDirectory(OutputFolder);
 
-	// Filter to civilian-only categories (no racing suits, military, police, MC patches, etc.)
+	// Filter to civilian-only categories.
+	// Excluded: all Heist variants, Diamond Casino Heist, Cayo Perico Heist, Securoserv (security),
+	//           CEO/CEO Associates, Biker Suits, Classic Racing Suits, MC/Motorcycle Club,
+	//           Smuggler, Special, Biker (gang-only), police/prison/FIB/Gruppe (in Diamond Heist prefix).
 	static const std::vector<std::string> sMaleCivil = {
 		"MaleBeach", "MaleBusiness Casual", "MaleBusiness Smart", "MaleCasual",
 		"MaleDesigner", "MaleEccentric", "MaleFinance & Felony", "MaleFlashy",
 		"MaleHigh Life", "MaleHipster", "MaleImport-Export", "MaleLowrider",
-		"MaleLuxury", "MaleParty", "MaleSmart", "MaleSporty", "MaleStandard",
-		"MaleStreet", "MaleVIP", "MaleHeist Business", "MaleHeist Casual",
-		"MaleHeist Coveralls", "MaleHeist Minimalist", "MaleHeist Rebel",
-		"MaleHeist Rider", "MaleHeist Shady", "MaleHeist Sharp", "MaleHeist Sloppy",
-		"MaleHeist Street", "MaleHeist Tuxedos",
-		"MaleThe Cayo Perico HeistCasual", "MaleThe Cayo Perico HeistSmugglers"
+		"MaleLowrider Classics", "MaleLuxury", "MaleParty", "MaleSmart",
+		"MaleSporty", "MaleStandard", "MaleStreet", "MaleVIP"
 	};
 	static const std::vector<std::string> sFemaleCivil = {
 		"FemaleBeach", "FemaleBusiness Pants", "FemaleBusiness Skirts", "FemaleCasual",
 		"FemaleCatsuits", "FemaleDesigner", "FemaleEccentric", "FemaleFinance & Felony",
 		"FemaleFlashy", "FemaleHipster", "FemaleImport-Export", "FemaleLowrider",
-		"FemaleLuxury", "FemaleParty", "FemaleSmart", "FemaleSporty", "FemaleStandard",
-		"FemaleStreet", "FemaleHeist Business", "FemaleHeist Casual", "FemaleHeist Coveralls",
-		"FemaleHeist Minimalist", "FemaleHeist Rebel", "FemaleHeist Rider",
-		"FemaleHeist Shady", "FemaleHeist Sharp", "FemaleHeist Sloppy",
-		"FemaleHeist Street", "FemaleHeist Tuxedos",
-		"FemaleThe Cayo Perico HeistCasual", "FemaleThe Cayo Perico HeistSmugglers"
+		"FemaleLowrider Classics", "FemaleLuxury", "FemaleParty", "FemaleSmart",
+		"FemaleSporty", "FemaleStandard", "FemaleStreet"
 	};
 	const auto& civPrefixes = male ? sMaleCivil : sFemaleCivil;
 	{
@@ -2297,14 +2402,16 @@ void DriveAround(Ped peddy, bool lawAbiding = false)
 			}
 			else
 			{
-				iStyle = 262956;
-				fSpeed = 25.0f;
+				// 786468 = avoids sidewalks/pavements while still being aggressive
+				iStyle = 786468;
+				fSpeed = 20.0f;
 				int iRand = LessRandomInt("DriveWanderStyle", 1, 10);
-				if      (iRand > 8) { iStyle = 786603; fSpeed = RandomFloat(35.0f, 55.0f); }
-				else if (iRand > 5) { fSpeed = RandomFloat(22.0f, 32.0f); }
-				else                { fSpeed = RandomFloat(12.0f, 22.0f); }
+				if      (iRand > 8) { iStyle = 786603; fSpeed = RandomFloat(28.0f, 40.0f); }
+				else if (iRand > 5) { fSpeed = RandomFloat(18.0f, 28.0f); }
+				else                { fSpeed = RandomFloat(12.0f, 20.0f); }
 			}
-			AI::TASK_VEHICLE_DRIVE_WANDER(peddy, Vic, fSpeed, iStyle);
+			PED::SET_DRIVER_ABILITY(peddy, 1.0f);
+		AI::TASK_VEHICLE_DRIVE_WANDER(peddy, Vic, fSpeed, iStyle);
 			PED::SET_PED_KEEP_TASK(peddy, true);
 			PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(peddy, true);
 		}
@@ -2565,7 +2672,7 @@ void FightTogether(Vehicle vic, Ped peddy)
 {
 	for (int i = 0; i < (int)PedList.size(); i++)
 	{
-		if (PedList[i].Passenger)
+		if (PedList[i].Passenger && !PedList[i].Friendly)
 		{
 			if (PedList[i].ThisVeh == vic)
 				DriveBye(PedList[i].ThisPed, vic, peddy, false);
@@ -2918,22 +3025,26 @@ void OnlineDress(Ped peddy, ClothX* clothClass)
 	if (StringContains("Bodysuit", clothClass->Title) && clothClass->ClothA.size() > 5)
 		clothClass->ClothA[1] = -10;
 
-	for (int i = 0; i < clothClass->ClothA.size(); i++)
+	for (int i = 0; i < (int)clothClass->ClothA.size(); i++)
 	{
-		if (clothClass->ClothA[i] != -10)
+		// Skip any negative drawable value — both the explicit -10 sentinel and
+		// the common -1 "unused slot" found in outfit INIs.  Passing -1 to the
+		// native hides that component entirely (causes missing arms / hair).
+		if (clothClass->ClothA[i] >= 0)
 			PED::SET_PED_COMPONENT_VARIATION(peddy, i, clothClass->ClothA[i], clothClass->ClothB[i], 2);
-
 	}
 
-	for (int i = 0; i < clothClass->ExtraA.size(); i++)
+	for (int i = 0; i < (int)clothClass->ExtraA.size(); i++)
 	{
-		if (clothClass->ExtraA[i] != -10)
+		if (clothClass->ExtraA[i] >= 0)
 			PED::SET_PED_PROP_INDEX(peddy, i, clothClass->ExtraA[i], clothClass->ExtraB[i], false);
 	}
 }
 void OnlineFaces(Ped peddy, ClothBank* clothBankClass)
 {
 	LoggerLight("OnlineFaces");
+	// Reset all components to defaults first to prevent missing arms/hair from component mismatches.
+	PED::SET_PED_DEFAULT_COMPONENT_VARIATION(peddy);
 	//****************FaceShape/Colour****************
 	PED::SET_PED_HEAD_BLEND_DATA(peddy, clothBankClass->MyFaces.ShapeFirstID, clothBankClass->MyFaces.ShapeSecondID, clothBankClass->MyFaces.ShapeThirdID, clothBankClass->MyFaces.SkinFirstID, clothBankClass->MyFaces.SkinSecondID, clothBankClass->MyFaces.SkinThirdID, clothBankClass->MyFaces.ShapeMix, clothBankClass->MyFaces.SkinMix, clothBankClass->MyFaces.ThirdMix, 0);
 
@@ -3130,25 +3241,6 @@ Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 	else if (brain->TheHacker)
 		brain->IsAnimal = true;
 
-	// Pre-detect gang zone: if LSR is loaded and this will be a hostile on-foot ped,
-	// swap in the gang's native ped model so they look like actual gang members.
-	if (!brain->IsAnimal && !brain->Friendly && !brain->Follower && !brain->Driver && !brain->Passenger
-		&& LSRData::IsAvailable && brain->GangID.empty())
-	{
-		std::string preZone = ZONE::GET_NAME_OF_ZONE(pos.X, pos.Y, pos.Z);
-		std::string preGang = LSRData::GetGangForZone(preZone);
-		if (!preGang.empty())
-		{
-			std::string gangModel = LSRData::GetRandomGangPedModel(preGang);
-			if (!gangModel.empty())
-			{
-				MyModel = MyHashKey(gangModel);
-				brain->GangID       = preGang;
-				brain->IsNativeModel = true;
-			}
-		}
-	}
-
 	STREAMING::REQUEST_MODEL(MyModel);// Check if the model is valid
 
 	if ((bool)STREAMING::IS_MODEL_IN_CDIMAGE(MyModel) && (bool)STREAMING::IS_MODEL_VALID(MyModel))
@@ -3215,10 +3307,23 @@ Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 
 			if (!brain->IsAnimal)
 			{
-				// Native gang models (g_m_y_ballas_01 etc.) have their own visual — skip
-				// freemode face/outfit injection which would overwrite their appearance.
-				if (!brain->IsNativeModel)
-					OnlineFaces(ThisPed, &brain->PFMySetting);
+				OnlineFaces(ThisPed, &brain->PFMySetting);
+
+				// Civilians (friendly/follower) must not wear masks, utility belts, or face paint.
+				//   Component 1  = balaclava / face mask
+				//   Component 5  = bags / hip accessories (holsters, belt bags, etc.)
+				//   Component 9  = body armor / utility belt / tactical vest
+				//   Overlay  4   = makeup / face paint (disabled on males only)
+				// Hostile / gang peds keep all of these.
+				if (brain->Friendly || brain->Follower)
+				{
+					PED::SET_PED_COMPONENT_VARIATION(ThisPed, 1, 0, 0, 2); // no mask
+					PED::SET_PED_COMPONENT_VARIATION(ThisPed, 5, 0, 0, 2); // no bags / hip accessories
+					PED::SET_PED_COMPONENT_VARIATION(ThisPed, 9, 0, 0, 2); // no utility belt / vest
+					if (brain->PFMySetting.Male)
+						PED::SET_PED_HEAD_OVERLAY(ThisPed, 4, 255, 0.0f);  // no face paint on civilian males
+				}
+
 				// Friendly / civilian peds are unarmed civilians — never give them a weapon loadout.
 				// Hostile / criminal peds get a loadout via GunningIt (weapons holstered until combat).
 				if (!brain->Friendly && !brain->Follower)
@@ -3287,13 +3392,31 @@ Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 						//   Poor     (1) = high-crime    — 25 % friendly, rest hostile
 						// This overrides the global Aggression-based roll so that
 						// Vinewood feels calm and Davis/Strawberry feel dangerous.
+						//
+						// GANG DEN OVERRIDE: within 150 m of a gang den the economy
+						// re-roll is skipped and the ped is forced hostile with that
+						// gang's ID — so members always appear near their dens even
+						// when the den sits inside a wealthy neighbourhood.
 						// -------------------------------------------------------
+						std::string nearDenGangID;
+						bool nearDen = LSRData::IsNearGangDen(
+							spawnPos.x, spawnPos.y, spawnPos.z, 150.0f, nearDenGangID);
+
 						bool wasHostile = !brain->Friendly;
-						if (brain->ZoneEconomy == 3)
-							brain->Friendly = (RandomInt(1, 100) <= 85);
-						else if (brain->ZoneEconomy == 1)
-							brain->Friendly = (RandomInt(1, 100) <= 25);
-						// ZoneEconomy == 2: leave Friendly unchanged (Aggression roll stands)
+						if (nearDen)
+						{
+							brain->Friendly = false;
+							if (brain->GangID.empty())
+								brain->GangID = nearDenGangID;
+						}
+						else
+						{
+							if (brain->ZoneEconomy == 3)
+								brain->Friendly = (RandomInt(1, 100) <= 85);
+							else if (brain->ZoneEconomy == 1)
+								brain->Friendly = (RandomInt(1, 100) <= 25);
+							// ZoneEconomy == 2: leave Friendly unchanged (Aggression roll stands)
+						}
 
 						// If the economy re-roll changed the alignment, fix relationship group.
 						if (wasHostile && brain->Friendly)
@@ -3339,6 +3462,18 @@ Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 						else if (h >= 12 && h < 18) brain->SchedulePhase = 1;
 						else if (h >= 18 && h < 22) brain->SchedulePhase = 2;
 						else                         brain->SchedulePhase = 3;
+
+						// Freemode gang peds: re-dress with gang-appropriate clothing now that
+						// we know the gang ID. Skipped for native models (they have built-in looks).
+						if (!brain->Friendly && !brain->GangID.empty())
+						{
+							PED::SET_PED_DEFAULT_COMPONENT_VARIATION(ThisPed);
+							ClothX gangOutfit = GetGangCloths(brain->GangID, brain->PFMySetting.Male);
+							OnlineDress(ThisPed, &gangOutfit);
+							// Restore hair after reset+redress — outfit files do not define component 2 (hair).
+							PED::SET_PED_COMPONENT_VARIATION(ThisPed, 2, brain->PFMySetting.MyHair.Comp, brain->PFMySetting.MyHair.Text, 2);
+							PED::_SET_PED_HAIR_COLOR(ThisPed, brain->PFMySetting.HairColour, brain->PFMySetting.HairStreaks);
+						}
 
 						// Friendly / civilian peds never commit crimes and are never armed.
 						// Hostile peds roll for criminal status and get a holstered weapon.
@@ -3619,7 +3754,53 @@ Vehicle SpawnVehicle(PlayerBrain* brain, bool newPlayer, bool canFill)
 			{
 				brain->ThisPed = PlayerPedGen(VecLocal, brain, false);
 				WarptoAnyVeh(BuildVehicle, brain->ThisPed, -1);
-				GunningIt(brain->ThisPed, 6);
+
+				// Zone economy re-roll for drivers — same neighborhood logic as on-foot peds,
+				// including the gang den proximity override so den-area drivers stay hostile
+				// even when the den sits inside a wealthy neighbourhood.
+				if (LSRData::IsAvailable)
+				{
+					Vector3 dPos = ENTITY::GET_ENTITY_COORDS(brain->ThisPed, true);
+					std::string dZone = std::string(ZONE::GET_NAME_OF_ZONE(dPos.x, dPos.y, dPos.z));
+					if (brain->GangID.empty())
+						brain->GangID = LSRData::GetGangForZone(dZone);
+					brain->ZoneEconomy = LSRData::GetEconomyCode(LSRData::GetEconomyForZone(dZone));
+
+					std::string dNearDenGangID;
+					bool dNearDen = LSRData::IsNearGangDen(
+						dPos.x, dPos.y, dPos.z, 150.0f, dNearDenGangID);
+
+					bool dWasHostile = !brain->Friendly;
+					if (dNearDen)
+					{
+						// Den proximity overrides zone economy for drivers too.
+						brain->Friendly = false;
+						if (brain->GangID.empty())
+							brain->GangID = dNearDenGangID;
+					}
+					else
+					{
+						if (brain->ZoneEconomy == 3)
+							brain->Friendly = (RandomInt(1, 100) <= 85);
+						else if (brain->ZoneEconomy == 1)
+							brain->Friendly = (RandomInt(1, 100) <= 25);
+					}
+
+					if (dWasHostile && brain->Friendly)
+					{
+						brain->BlipColour = 0;
+						UI::SET_BLIP_COLOUR(brain->ThisBlip, 0);
+						RelGroupMember(brain->ThisPed, Gp_Friend);
+					}
+					else if (!dWasHostile && !brain->Friendly)
+					{
+						brain->BlipColour = 1;
+						UI::SET_BLIP_COLOUR(brain->ThisBlip, 1);
+					}
+				}
+
+				if (!brain->Friendly)
+					GunningIt(brain->ThisPed, 6);
 				PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(brain->ThisPed, 1);
 				int Seating = VEHICLE::GET_VEHICLE_MAX_NUMBER_OF_PASSENGERS(BuildVehicle);
 				if (canFill && PlayerZinSesh() + Seating < MySettings.MaxPlayers)
@@ -3643,7 +3824,8 @@ Vehicle SpawnVehicle(PlayerBrain* brain, bool newPlayer, bool canFill)
 						PedList.push_back(NewBrain);
 						Ped CarPed = PlayerPedGen(VecLocal, &PedList[PedList.size() - 1], false);
 						WarptoAnyVeh(BuildVehicle, CarPed, i);
-						GunningIt(CarPed, 6);
+						if (!NewBrain.Friendly)
+							GunningIt(CarPed, 6);
 					}
 				}
 			}
@@ -4729,6 +4911,10 @@ void ProcessPZ(PlayerBrain* brain)
 			Ped PlayZero = brain->ThisPed;
 			Vector3 PlayerPos = PlayerPosi();
 			Vector3 PedPos = EntityPosition(PlayZero);
+
+			// Re-assert mission entity every ~5 s to prevent engine culling as player approaches.
+			if (GameTime % 5000 < 100)
+				ENTITY::SET_ENTITY_AS_MISSION_ENTITY(PlayZero, 1, 1);
 
 			if ((bool)ENTITY::IS_ENTITY_DEAD(PlayZero))
 			{

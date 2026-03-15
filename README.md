@@ -67,6 +67,90 @@ Change Log
 ---- Fork Changes by idiotsandwich93 ----
 
 
+-- v32: Liberty City Outfit Classification --
+
+- Added Liberty City gang IDs to GetGangCloths() style buckets so LC freemode peds wear
+  contextually appropriate outfits instead of always defaulting to street attire.
+- LC Italian crime families (Sindacco, Forelli, Leone) added to org-crime bucket alongside
+  the existing GTA V five-families — wear High Life, VIP, Designer, Finance & Felony outfits.
+- Jewish mob and Russian mob (Petrovic) added to org-crime bucket.
+- Yakuza and Korean mob added to org-crime bucket.
+- Uptown Riders added to MC bucket — wear Biker / Motorcycle Club outfits.
+- North Holland Hustlers, Spanish Lords, Yardies, Diablos fall through to the street bucket
+  (Lowrider, Lowrider Classics, Street, Import-Export) as appropriate for street-level gangs.
+
+
+-- v31: Liberty City Preservation Project (LPP) Support --
+
+- LSRData::Init() now automatically detects and loads Liberty City Preservation Project data
+  when _LPP XML files are present in plugins/LosSantosRED/.
+- Loads six LPP files at startup and merges them into the same runtime maps as Los Santos data:
+  GangTerritories_LPP.xml, Zones_LPP.xml, Gangs_LPP.xml, Locations_LPP.xml,
+  DispatchablePeople_LPP.xml, DispatchableVehicles_LPP.xml.
+- No runtime map-switching required — LC zone internal names (ACTER, BOHAN, ALGON, etc.) are
+  distinct from LS names, so all existing lookups (GetGangForZone, GetEconomyForZone,
+  IsNearGangDen, GetRandomGangPedModel, GetRandomGangVehicle) automatically return LC-specific
+  data when the player is in Liberty City.
+- Dynamic neighborhood aggression fully applies to LC zones using Zones_LPP.xml economy
+  classifications (wealthy LC neighborhoods stay calm, poor/gang areas are dangerous).
+- LC gangs — Sindacco, Leone Family, Gambetti, Petrovic, North Holland Hustlers, Yardies,
+  Lost MC LC chapter, Angels of Death LC, Uptown Riders, Spanish Lords, Diablos, and more —
+  spawn in their correct territories with correct ped models and vehicles.
+- Gang den proximity override applies to LC dens loaded from Locations_LPP.xml — gang members
+  stay hostile near their LC dens regardless of neighborhood wealth class.
+- Diagnostic log entries written to PlayerZero/LoggerLight.txt confirming how many LC zones,
+  gangs, economy zones, and gang dens were merged at startup.
+
+
+-- v30: Gang Den Proximity Spawning + Driver Despawn Fix --
+
+- Gang members now spawn hostile near their gang dens even when the den is located in a wealthy
+  neighborhood. The zone economy re-roll that would otherwise make peds friendly in rich areas
+  is skipped entirely when the spawn point is within 150m of a known gang den.
+- Applies to both on-foot peds and vehicle drivers via separate den proximity checks in
+  SpawnPed() and SpawnVehicle() before the zone economy re-roll runs.
+- Added LSRData::IsNearGangDen() — queries GangDen entries from Locations.xml by 2D X/Y
+  distance. Returns the owning gang's AssignedAssociationID so the spawned ped is also
+  assigned to the correct gang ID when no gang was already set.
+- Added gangID field to LSRLocation struct to store AssignedAssociationID for gang dens.
+- Fixed driver despawn bug: the SpawnVehicle() zone economy re-roll was flipping hostile
+  drivers back to friendly in wealthy zones after PlayerPedGen had already set them hostile
+  for den proximity. Den proximity check now runs before the re-roll in both code paths.
+
+
+-- v29: Civilian Outfit Filtering + Missing Arms Fix --
+
+- Removed all heist outfits (MaleHeist*, FemaleHeist*, Cayo Perico Heist*) from the civilian
+  outfit whitelist. Friendly/civilian peds no longer spawn in heist gear.
+- Added Lowrider Classics category to the civilian outfit pool for both male and female peds.
+- Post-dress cleanup block now runs for all friendly and follower peds immediately after
+  OnlineDress() and OnlineFaces(): resets component 1 (mask) to 0, component 5 (bags/hip
+  accessories) to 0, and component 9 (utility belt/body armor) to 0. Gang and hostile peds
+  keep their full outfit including masks and utility belts.
+- Removed face paint (head overlay 4) from civilian male peds via SET_PED_HEAD_OVERLAY.
+- Fixed missing arms and hidden hair on freemode peds: OnlineDress() was passing -1 drawable
+  values from outfit INI files (which use -1 for unused slots) directly to
+  SET_PED_COMPONENT_VARIATION, which hides that body component entirely. Changed check from
+  != -10 to >= 0 so all negative drawable values are skipped.
+
+
+-- v28: Gang-Accurate Outfits, Ped Models, and Vehicles --
+
+- Gang peds now wear outfit categories that match their real GTA Online DLC sections instead of
+  random civilian clothing. Street gangs (Ballas, Vagos, Families, Marabunta, Aztecas) wear
+  Lowrider, Lowrider Classics, Street, and Import-Export outfits. MC gangs (Lost MC, Angels of
+  Death) wear Biker and Motorcycle Club outfits. Org crime (Gambetti, Pavano, Lupisella, Messina,
+  Ancelotti, Armenian mob, Wei Cheng, Kkangpae, Madrazo) wear High Life, VIP, Designer, Finance
+  & Felony, and Luxury outfits. Redneck gangs wear Standard, Casual, and Hipster outfits.
+- Gang ped models are now sourced from LSR's DispatchablePeople.xml. Each gang's PersonnelID
+  maps to a DispatchablePersonGroup, and a random ModelName from that group is used for spawning
+  instead of a generic freemode ped. Falls back to freemode if no LSR data is available.
+- Gang vehicles are now sourced from LSR's DispatchableVehicles.xml using the same group lookup
+  pattern. Each gang's VehiclesID maps to a list of period-appropriate vehicle models.
+- Civilian outfit whitelist updated: removed all police, security, park ranger, and heist
+  prefixes so civilians only wear regular street clothing categories.
+
+
 -- v27: Drug Buy System --
 
 - Added DoBuyDrugs(): civilian PZ peds in poor/criminal areas will now walk up to gang member
