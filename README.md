@@ -73,8 +73,7 @@ Change Log
   dealers and simulate purchasing drugs from them. Buyers first scan for PZ peds with
   IsDealer=true within 30m, then fall back to ambient LSR gang peds identified by relationship
   group hash (ActiveGangGroups).
-- Drug type is drawn from LSRData::GetRandomIntoxicant(), which reads Itoxicants.xml and
-  Itoxicants+_LSRPDRUGS.xml at startup — various substances including Marijuana, Cocaine, Crack,
+- Drug type is drawn from LSRData::GetRandomIntoxicant(), which reads Itoxicants.xml at startup — various substances including Marijuana, Cocaine, Crack,
   Heroin, Meth, and more.
 - Buy chance scales by zone: 12% in poor/gang areas, 10% for high-aggression peds (tier 3),
   4% in middle-class areas. 3 to 7 minute cooldown between purchase attempts per ped.
