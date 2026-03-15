@@ -23,6 +23,8 @@ struct LSRGangProfile {
     int pctMelee             = 20;
     int vehicleSpawnPct      = 50;
     int hostileRepLevel      = -200;
+    std::string personnelGroupID; // links to DispatchablePeople.xml group
+    std::string vehicleGroupID;   // links to DispatchableVehicles.xml group
 };
 
 struct LSRInterior {
@@ -111,6 +113,14 @@ public:
     // Returns "something" if LSR not available or file not found.
     static const std::string& GetRandomIntoxicant();
 
+    // Random native ped model string for a gang (e.g. "g_m_y_ballasout_01").
+    // Returns "" if LSR not available or gang not found.
+    static std::string GetRandomGangPedModel(const std::string& gangID);
+
+    // Random vehicle model string for a gang (e.g. "buccaneer2").
+    // Returns "" if LSR not available or gang not found.
+    static std::string GetRandomGangVehicle(const std::string& gangID);
+
 private:
     static std::unordered_map<std::string, std::string>                ZoneGangMap;
     static std::unordered_map<std::string, std::string>                ZoneEconomyMap;
@@ -118,6 +128,10 @@ private:
     static std::unordered_map<std::string, std::vector<LSRLocation>>   Locations;
     static std::unordered_map<int, LSRInterior>                        Interiors;
     static std::vector<std::string>                                    IntoxicantNames;
+    // gangID → list of native ped model names from DispatchablePeople.xml
+    static std::unordered_map<std::string, std::vector<std::string>>   GangPedModelMap;
+    // gangID → list of vehicle model names from DispatchableVehicles.xml
+    static std::unordered_map<std::string, std::vector<std::string>>   GangVehicleMap;
 
     static void LoadTerritories(const std::string& path);
     static void LoadZones(const std::string& path);
@@ -125,6 +139,8 @@ private:
     static void LoadLocations(const std::string& path);
     static void LoadInteriors(const std::string& path);
     static void LoadIntoxicants(const std::string& path);
+    static void LoadGangPeds(const std::string& path);
+    static void LoadGangVehicles(const std::string& path);
 
     // Reads the file at path, accumulates text between <blockTag> and </blockTag>,
     // and fires callback(block) for each complete block found.

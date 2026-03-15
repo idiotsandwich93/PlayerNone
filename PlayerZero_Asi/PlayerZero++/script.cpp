@@ -142,6 +142,50 @@ ClothX GetCloths(bool male)
 
 	std::vector<std::string> Files = ReadDirectory(OutputFolder);
 
+	// Filter to civilian-only categories (no racing suits, military, police, MC patches, etc.)
+	static const std::vector<std::string> sMaleCivil = {
+		"MaleBeach", "MaleBusiness Casual", "MaleBusiness Smart", "MaleCasual",
+		"MaleDesigner", "MaleEccentric", "MaleFinance & Felony", "MaleFlashy",
+		"MaleHigh Life", "MaleHipster", "MaleImport-Export", "MaleLowrider",
+		"MaleLuxury", "MaleParty", "MaleSmart", "MaleSporty", "MaleStandard",
+		"MaleStreet", "MaleVIP", "MaleHeist Business", "MaleHeist Casual",
+		"MaleHeist Coveralls", "MaleHeist Minimalist", "MaleHeist Rebel",
+		"MaleHeist Rider", "MaleHeist Shady", "MaleHeist Sharp", "MaleHeist Sloppy",
+		"MaleHeist Street", "MaleHeist Tuxedos",
+		"MaleThe Cayo Perico HeistCasual", "MaleThe Cayo Perico HeistSmugglers"
+	};
+	static const std::vector<std::string> sFemaleCivil = {
+		"FemaleBeach", "FemaleBusiness Pants", "FemaleBusiness Skirts", "FemaleCasual",
+		"FemaleCatsuits", "FemaleDesigner", "FemaleEccentric", "FemaleFinance & Felony",
+		"FemaleFlashy", "FemaleHipster", "FemaleImport-Export", "FemaleLowrider",
+		"FemaleLuxury", "FemaleParty", "FemaleSmart", "FemaleSporty", "FemaleStandard",
+		"FemaleStreet", "FemaleHeist Business", "FemaleHeist Casual", "FemaleHeist Coveralls",
+		"FemaleHeist Minimalist", "FemaleHeist Rebel", "FemaleHeist Rider",
+		"FemaleHeist Shady", "FemaleHeist Sharp", "FemaleHeist Sloppy",
+		"FemaleHeist Street", "FemaleHeist Tuxedos",
+		"FemaleThe Cayo Perico HeistCasual", "FemaleThe Cayo Perico HeistSmugglers"
+	};
+	const auto& civPrefixes = male ? sMaleCivil : sFemaleCivil;
+	{
+		std::vector<std::string> Filtered;
+		Filtered.reserve(Files.size());
+		for (const auto& fp : Files) {
+			// Extract just the filename portion (after last slash/backslash)
+			std::string fname = fp;
+			size_t sl = fp.rfind('/');
+			size_t bs = fp.rfind('\\');
+			size_t sep = std::string::npos;
+			if (sl != std::string::npos && bs != std::string::npos) sep = sl > bs ? sl : bs;
+			else if (sl != std::string::npos) sep = sl;
+			else if (bs != std::string::npos) sep = bs;
+			if (sep != std::string::npos) fname = fp.substr(sep + 1);
+			for (const auto& prefix : civPrefixes) {
+				if (fname.find(prefix) == 0) { Filtered.push_back(fp); break; }
+			}
+		}
+		if (!Filtered.empty()) Files = std::move(Filtered);
+	}
+
 	int Rando = 0;
 	if (male)
 		Rando = LessRandomInt("Outfits_01", 0, (int)Files.size() - 1);
@@ -3086,6 +3130,25 @@ Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 	else if (brain->TheHacker)
 		brain->IsAnimal = true;
 
+	// Pre-detect gang zone: if LSR is loaded and this will be a hostile on-foot ped,
+	// swap in the gang's native ped model so they look like actual gang members.
+	if (!brain->IsAnimal && !brain->Friendly && !brain->Follower && !brain->Driver && !brain->Passenger
+		&& LSRData::IsAvailable && brain->GangID.empty())
+	{
+		std::string preZone = ZONE::GET_NAME_OF_ZONE(pos.X, pos.Y, pos.Z);
+		std::string preGang = LSRData::GetGangForZone(preZone);
+		if (!preGang.empty())
+		{
+			std::string gangModel = LSRData::GetRandomGangPedModel(preGang);
+			if (!gangModel.empty())
+			{
+				MyModel = MyHashKey(gangModel);
+				brain->GangID       = preGang;
+				brain->IsNativeModel = true;
+			}
+		}
+	}
+
 	STREAMING::REQUEST_MODEL(MyModel);// Check if the model is valid
 
 	if ((bool)STREAMING::IS_MODEL_IN_CDIMAGE(MyModel) && (bool)STREAMING::IS_MODEL_VALID(MyModel))
@@ -3152,7 +3215,10 @@ Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 
 			if (!brain->IsAnimal)
 			{
-				OnlineFaces(ThisPed, &brain->PFMySetting);
+				// Native gang models (g_m_y_ballas_01 etc.) have their own visual — skip
+				// freemode face/outfit injection which would overwrite their appearance.
+				if (!brain->IsNativeModel)
+					OnlineFaces(ThisPed, &brain->PFMySetting);
 				// Friendly / civilian peds are unarmed civilians — never give them a weapon loadout.
 				// Hostile / criminal peds get a loadout via GunningIt (weapons holstered until combat).
 				if (!brain->Friendly && !brain->Follower)
@@ -3208,9 +3274,9 @@ Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 						std::string zoneName = std::string(ZONE::GET_NAME_OF_ZONE(
 							spawnPos.x, spawnPos.y, spawnPos.z));
 
-						brain->GangID      = LSRData::GetGangForZone(zoneName);
-						brain->ZoneEconomy = LSRData::GetEconomyCode(
-							LSRData::GetEconomyForZone(zoneName));
+						if (brain->GangID.empty())
+							brain->GangID = LSRData::GetGangForZone(zoneName);
+						brain->ZoneEconomy = LSRData::GetEconomyCode(LSRData::GetEconomyForZone(zoneName));
 
 						aggrTier = GetZoneAggressionTier(zoneName);
 
@@ -3464,15 +3530,37 @@ Vehicle SpawnVehicle(PlayerBrain* brain, bool newPlayer, bool canFill)
 	{
 		Hash VehModel;
 		WAIT(100);
-		if (brain->PrefredVehicle < 7)
+
+		// For hostile peds in a gang zone, try to use the gang's actual vehicle list.
+		// Detect the zone from the player's current position (vehicles always spawn near player).
+		bool bUsedGangVeh = false;
+		if (LSRData::IsAvailable && !brain->Friendly && brain->PrefredVehicle < 7)
 		{
-			if (brain->FaveVehicle == "")
-				VehModel = MyHashKey(RandVeh(brain->PrefredVehicle));
-			else
-				VehModel = MyHashKey(brain->FaveVehicle);
+			Vector3 pPos = ENTITY::GET_ENTITY_COORDS(PLAYER::PLAYER_PED_ID(), true);
+			std::string gangZone = LSRData::GetGangForZone(ZONE::GET_NAME_OF_ZONE(pPos.x, pPos.y, pPos.z));
+			if (!gangZone.empty())
+			{
+				std::string gv = LSRData::GetRandomGangVehicle(gangZone);
+				if (!gv.empty())
+				{
+					VehModel = MyHashKey(gv);
+					if (brain->GangID.empty()) brain->GangID = gangZone;
+					bUsedGangVeh = true;
+				}
+			}
 		}
-		else
-			VehModel = MyHashKey(RandVeh(brain->PrefredVehicle));
+		if (!bUsedGangVeh)
+		{
+			if (brain->PrefredVehicle < 7)
+			{
+				if (brain->FaveVehicle == "")
+					VehModel = MyHashKey(RandVeh(brain->PrefredVehicle));
+				else
+					VehModel = MyHashKey(brain->FaveVehicle);
+			}
+			else
+				VehModel = MyHashKey(RandVeh(brain->PrefredVehicle));
+		}
 
 		if (!IsItARealVehicle(VehModel))
 			VehModel = MyHashKey("MAMBA");

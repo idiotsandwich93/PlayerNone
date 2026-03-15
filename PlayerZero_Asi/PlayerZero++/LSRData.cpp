@@ -19,6 +19,8 @@ std::unordered_map<std::string, LSRGangProfile>           LSRData::GangProfiles;
 std::unordered_map<std::string, std::vector<LSRLocation>> LSRData::Locations;
 std::unordered_map<int, LSRInterior>                        LSRData::Interiors;
 std::vector<std::string>                                    LSRData::IntoxicantNames;
+std::unordered_map<std::string, std::vector<std::string>>   LSRData::GangPedModelMap;
+std::unordered_map<std::string, std::vector<std::string>>   LSRData::GangVehicleMap;
 
 // ---------------------------------------------------------------------------
 // XML helpers
@@ -140,6 +142,10 @@ void LSRData::LoadGangs(const std::string& path) {
                 gp.vehicleSpawnPct      = GetTagInt(line, "VehicleSpawnPercentage");
             if (line.find("<HostileRepLevel>") != std::string::npos)
                 gp.hostileRepLevel      = GetTagInt(line, "HostileRepLevel");
+            if (line.find("<PersonnelID>") != std::string::npos)
+                gp.personnelGroupID     = GetTagValue(line, "PersonnelID");
+            if (line.find("<VehiclesID>") != std::string::npos)
+                gp.vehicleGroupID       = GetTagValue(line, "VehiclesID");
         }
         if (!gp.gangID.empty())
             GangProfiles[gp.gangID] = gp;
@@ -277,6 +283,8 @@ void LSRData::Init(const std::string& lsrRoot) {
     LoadLocations  (lsrRoot + "/Locations.xml");
     LoadInteriors  (lsrRoot + "/Interiors.xml");
     LoadIntoxicants(lsrRoot + "/Itoxicants.xml");
+    LoadGangPeds   (lsrRoot + "/DispatchablePeople.xml");
+    LoadGangVehicles(lsrRoot + "/DispatchableVehicles.xml");
 
     IsAvailable = true;
 
@@ -488,4 +496,90 @@ const std::string& LSRData::GetRandomIntoxicant()
     static std::string fallback = "something";
     if (IntoxicantNames.empty()) return fallback;
     return IntoxicantNames[(size_t)std::rand() % IntoxicantNames.size()];
+}
+
+// ---------------------------------------------------------------------------
+// LoadGangPeds — builds GangPedModelMap from gangID → personnelGroupID → models
+// ---------------------------------------------------------------------------
+void LSRData::LoadGangPeds(const std::string& path)
+{
+    // Build a groupID → model list from DispatchablePeople.xml
+    std::unordered_map<std::string, std::vector<std::string>> groupModels;
+    ParseBlocks(path, "DispatchablePersonGroup", [&groupModels](const std::string& blk) {
+        std::istringstream ss(blk);
+        std::string line;
+        std::string gid;
+        std::vector<std::string> models;
+        while (std::getline(ss, line)) {
+            if (gid.empty() && line.find("<DispatchablePersonGroupID>") != std::string::npos)
+                gid = GetTagValue(line, "DispatchablePersonGroupID");
+            if (line.find("<ModelName>") != std::string::npos) {
+                std::string m = GetTagValue(line, "ModelName");
+                if (!m.empty()) models.push_back(m);
+            }
+        }
+        if (!gid.empty() && !models.empty())
+            groupModels[gid] = models;
+    });
+
+    // Map each gang's personnelGroupID to their model list using gangID as key
+    for (auto& kv : GangProfiles) {
+        const std::string& pgid = kv.second.personnelGroupID;
+        if (!pgid.empty()) {
+            auto it = groupModels.find(pgid);
+            if (it != groupModels.end())
+                GangPedModelMap[kv.first] = it->second;
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// LoadGangVehicles — builds GangVehicleMap from gangID → vehicleGroupID → models
+// ---------------------------------------------------------------------------
+void LSRData::LoadGangVehicles(const std::string& path)
+{
+    std::unordered_map<std::string, std::vector<std::string>> groupModels;
+    ParseBlocks(path, "DispatchableVehicleGroup", [&groupModels](const std::string& blk) {
+        std::istringstream ss(blk);
+        std::string line;
+        std::string gid;
+        std::vector<std::string> models;
+        while (std::getline(ss, line)) {
+            if (gid.empty() && line.find("<DispatchableVehicleGroupID>") != std::string::npos)
+                gid = GetTagValue(line, "DispatchableVehicleGroupID");
+            if (line.find("<ModelName>") != std::string::npos) {
+                std::string m = GetTagValue(line, "ModelName");
+                if (!m.empty()) models.push_back(m);
+            }
+        }
+        if (!gid.empty() && !models.empty())
+            groupModels[gid] = models;
+    });
+
+    for (auto& kv : GangProfiles) {
+        const std::string& vgid = kv.second.vehicleGroupID;
+        if (!vgid.empty()) {
+            auto it = groupModels.find(vgid);
+            if (it != groupModels.end())
+                GangVehicleMap[kv.first] = it->second;
+        }
+    }
+}
+
+// Returns a random native ped model for the gang, or "" if not found.
+std::string LSRData::GetRandomGangPedModel(const std::string& gangID)
+{
+    if (!IsAvailable) return "";
+    auto it = GangPedModelMap.find(gangID);
+    if (it == GangPedModelMap.end() || it->second.empty()) return "";
+    return it->second[(size_t)std::rand() % it->second.size()];
+}
+
+// Returns a random vehicle model for the gang, or "" if not found.
+std::string LSRData::GetRandomGangVehicle(const std::string& gangID)
+{
+    if (!IsAvailable) return "";
+    auto it = GangVehicleMap.find(gangID);
+    if (it == GangVehicleMap.end() || it->second.empty()) return "";
+    return it->second[(size_t)std::rand() % it->second.size()];
 }
