@@ -914,6 +914,17 @@ namespace PZSys
 			}
 		}
 
+		// Snap to a valid pedestrian-safe coord.
+		// Flag 16 tells the pathfinder to prefer a sidewalk / pavement position,
+		// keeping spawned peds off the centre of the road.
+		Vector3 safeOut; safeOut.x = Pos.X; safeOut.y = Pos.Y; safeOut.z = Pos.Z;
+		if (PATHFIND::GET_SAFE_COORD_FOR_PED(Pos.X, Pos.Y, Pos.Z, true, &safeOut, 16))
+		{
+			Pos.X = safeOut.x;
+			Pos.Y = safeOut.y;
+			Pos.Z = safeOut.z;
+		}
+
 		LastDropPed.push_back(NewVector3(Pos.X, Pos.Y, Pos.Z));
 		if (LastDropPed.size() > 15)
 			LastDropPed.erase(LastDropPed.begin());

@@ -67,6 +67,62 @@ Change Log
 ---- Fork Changes by idiotsandwich93 ----
 
 
+-- v27: Drug Buy System --
+
+- Added DoBuyDrugs(): civilian PZ peds in poor/criminal areas will now walk up to gang member
+  dealers and simulate purchasing drugs from them. Buyers first scan for PZ peds with
+  IsDealer=true within 30m, then fall back to ambient LSR gang peds identified by relationship
+  group hash (ActiveGangGroups).
+- Drug type is drawn from LSRData::GetRandomIntoxicant(), which reads Itoxicants.xml and
+  Itoxicants+_LSRPDRUGS.xml at startup — 17+ substances including Marijuana, Cocaine, Crack,
+  Heroin, Meth, SPANK, LSD, Fish Scale, and more.
+- Buy chance scales by zone: 12% in poor/gang areas, 10% for high-aggression peds (tier 3),
+  4% in middle-class areas. 3 to 7 minute cooldown between purchase attempts per ped.
+- Added DrugBuyTarget and DrugBuyTimer fields to PlayerBrain struct to track buyer state
+  across ticks. Buyer walks to dealer, waits 12-22 seconds, then resumes normal behavior.
+- Added LSRData::LoadIntoxicants() which parses both intoxicant XML files at startup and
+  populates an internal list. GetRandomIntoxicant() returns a random entry from that list.
+- Fixed LoadInteriors() not being called in LSRData::Init() — interior data now loads correctly.
+
+
+-- v26: Zone Economy Spawns, Traffic Laws, Vendor Purchase, Spawn Fixes --
+
+- Zone-based civilian/hostile spawn ratios using LSR's economy classification. Wealthy areas
+  (Vinewood, Rockford Hills) re-roll to ~85% friendly civilians. Poor areas (Davis, Strawberry)
+  re-roll to ~75% hostile/criminal peds. Middle-class zones use default odds.
+- Friendly peds are now fully unarmed — GunningIt() is skipped entirely for friendlies.
+  All peds spawn with weapons holstered using WEAPON_UNARMED + equipNow=false.
+- Friendly peds flee danger: SET_PED_FLEE_ATTRIBUTES set to flee from nearby weapons and when
+  injured. When a hostile ped within 60m starts shooting, friendlies call TASK_SMART_FLEE_PED.
+- Police interactions: friendly peds surrender via TASK_HANDS_UP when the player is being
+  arrested. Hostile peds with AggressionTier >= 3 attack the officer; lower tiers flee.
+- Improved spawn positioning: GET_SAFE_COORD_FOR_PED now uses flag 16 (sidewalk preference)
+  so peds no longer spawn standing in the middle of roads.
+- Stuck vehicle recovery interval increased from 5s to 30s, preventing false positives for
+  law-abiding friendly drivers stopped at red lights (which can take 8-15 seconds).
+- Interior vendor purchase: peds entering shops now use GET_PED_NEARBY_PEDS to find ambient
+  clerk peds within 9m and walk up to them via TASK_GO_TO_ENTITY to simulate purchasing.
+  Falls back to a browse scenario animation if no clerk ped is found nearby.
+- Traffic law compliance: friendly/civilian drivers use GTA's law-abiding drive style
+  (1074528293) at 10-18 m/s. Hostile/gang drivers use reckless style (786603) at 22-40 m/s.
+  Based on DrivingAgainstTraffic and DrivingOnPavement entries in LSR's Crimes.xml.
+
+
+-- v24: Interior Entry + Traffic Stop Features --
+
+- On-foot peds now route to LSR business entrances using GetNearestLocationWithInterior().
+  State machine handles entry (holsters weapon if interior is weapon-restricted), waits inside
+  30-90 seconds, then exits and resumes normal behavior.
+- Driver peds roll traffic violations every 10 seconds: speeding above 28 m/s or a 3% random
+  chance. On a violation, the ped parks via TASK_VEHICLE_PARK for 40-75 seconds before
+  resuming normal drive/fight logic.
+- Added LSRInterior struct, Interiors map, LoadInteriors(), GetInterior(), and
+  GetNearestLocationWithInterior() to LSRData. Locations.xml is now parsed for InteriorID to
+  link location entries to their interior data.
+- Added InteriorEntryID, InsideInterior, IsPulledOver, PulloverTimer, and TrafficViolTimer
+  fields to PlayerBrain struct.
+
+
 -- v23: Store Robbery Sequence --
 
 - Added DoStoreRobbery(): three-phase sequence driven by existing timers.

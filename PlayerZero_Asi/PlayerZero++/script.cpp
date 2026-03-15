@@ -1,4 +1,4 @@
-/*
+﻿/*
 	 Player Zero MainScript
 	--By Adopocalipt 2023--
 */
@@ -1452,7 +1452,9 @@ void GunningIt(Ped peddy, int gun)
 	}
 
 	for (int i = 0; i < sWeapList.size(); i++)
-		WEAPON::GIVE_WEAPON_TO_PED(peddy, MyHashKey(sWeapList[i]), 9999, false, true);
+		WEAPON::GIVE_WEAPON_TO_PED(peddy, MyHashKey(sWeapList[i]), 9999, false, false); // holstered — weapon is owned but never drawn on spawn
+	// Force unarmed stance so the ped does not visually walk around with gun out
+	WEAPON::SET_CURRENT_PED_WEAPON(peddy, GAMEPLAY::GET_HASH_KEY("WEAPON_UNARMED"), true);
 }
 void GetInVehicle(Ped peddy, Vehicle vic, int seat)
 {
@@ -1847,6 +1849,70 @@ void DoDrugDeal(PlayerBrain* brain)
 	brain->ScenarioTimer = InGameTime() + RandomInt(8000, 15000);
 }
 
+// ---------------------------------------------------------------------------
+// DoBuyDrugs — civilian or criminal buyer approaches a nearby dealer.
+// Priority order:
+//   1. PZ dealer ped (IsDealer == true) within 30 m
+//   2. Ambient ped in an LSR gang relationship group within 30 m (LSR gang member / dealer)
+// The buyer walks to the dealer for 12-22 s (ShopTimer), then the ProcessPZ
+// ShopTimer handler clears DrugBuyTarget and returns the ped to normal AI.
+// ---------------------------------------------------------------------------
+void DoBuyDrugs(PlayerBrain* brain)
+{
+	Ped peddy = brain->ThisPed;
+	Vector3 myPos = ENTITY::GET_ENTITY_COORDS(peddy, true);
+
+	Ped dealerPed = NULL;
+	float nearestDist = 30.0f;
+
+	// 1) Prefer a PZ dealer ped
+	for (int bi = 0; bi < (int)PedList.size(); bi++)
+	{
+		PlayerBrain& b = PedList[bi];
+		if (b.ThisPed == peddy || b.Driver || b.Passenger || b.YoDeeeed || !b.IsDealer)
+			continue;
+		float d = DistanceTo(b.ThisPed, myPos);
+		if (d < nearestDist) { nearestDist = d; dealerPed = b.ThisPed; }
+	}
+
+	// 2) Fall back to an ambient LSR gang-member ped
+	if (dealerPed == NULL && !ActiveGangGroups.empty())
+	{
+		int nearBuf[256] = {};
+		PED::GET_PED_NEARBY_PEDS(peddy, nearBuf, -1);
+		int nearN = nearBuf[0];
+		if (nearN > 255) nearN = 255;
+		for (int ki = 1; ki <= nearN; ki++)
+		{
+			Ped cand = (Ped)nearBuf[ki];
+			if (!cand || !(bool)ENTITY::DOES_ENTITY_EXIST(cand)) continue;
+			if ((bool)ENTITY::IS_ENTITY_DEAD(cand))              continue;
+			if ((bool)PED::IS_PED_A_PLAYER(cand))               continue;
+			// Skip PZ peds
+			bool isPZ = false;
+			for (int pi = 0; pi < (int)PedList.size(); pi++)
+				if (PedList[pi].ThisPed == cand) { isPZ = true; break; }
+			if (isPZ) continue;
+			// Must be in a known LSR gang relationship group
+			Hash relGroup = PED::GET_PED_RELATIONSHIP_GROUP_HASH(cand);
+			if (ActiveGangGroups.find(relGroup) == ActiveGangGroups.end()) continue;
+			float d = DistanceTo(cand, myPos);
+			if (d < nearestDist) { nearestDist = d; dealerPed = cand; break; }
+		}
+	}
+
+	if (dealerPed == NULL) return;
+
+	// Walk toward the dealer — proximity + movement sells the exchange visually
+	AI::CLEAR_PED_TASKS(peddy);
+	AI::TASK_GO_TO_ENTITY(peddy, dealerPed, 30000, 1.5f, 1.0f, 0, 0);
+	PED::SET_PED_KEEP_TASK(peddy, true);
+	PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(peddy, true);
+
+	brain->DrugBuyTarget = dealerPed;
+	brain->ShopTimer     = InGameTime() + RandomInt(12000, 22000);
+}
+
 // After a scenario or shop visit expires, pick the next thing the NPC should do.
 // Criminal peds (IsCriminal) get a chance to carjack or deal drugs when their CrimeTimer has elapsed.
 // Weighted for civilians: 50% ambient wander, 20% walk to shop, 15% brief scenario, 15% walk to hotspot.
@@ -1935,6 +2001,26 @@ void PickNextAction(PlayerBrain* brain)
 		brain->CrimeTimer = InGameTime() + RandomInt(ctMin, ctMax);
 	}
 
+	// Drug purchase opportunity: non-dealer peds in poor/gang zones occasionally
+	// approach a nearby dealer (PZ or LSR gang member) to buy drugs.
+	// 12% in poor zones, 10% in tier-3 zones, 4% in mixed zones.
+	if (!brain->IsDealer && brain->DrugBuyTarget == NULL && brain->DrugBuyTimer < InGameTime())
+	{
+		int buyChance = 0;
+		if      (brain->ZoneEconomy == 1)        buyChance = 12;
+		else if (brain->AggressionTier >= 3)     buyChance = 10;
+		else if (brain->ZoneEconomy == 2)        buyChance =  4;
+		if (buyChance > 0 && RandomInt(1, 100) <= buyChance)
+		{
+			DoBuyDrugs(brain);
+			if (brain->DrugBuyTarget != NULL)
+			{
+				brain->DrugBuyTimer = InGameTime() + RandomInt(180000, 420000); // 3-7 min cooldown
+				return;
+			}
+		}
+	}
+
 	int roll = RandomInt(1, 100);
 
 	if (roll <= 50)
@@ -1989,7 +2075,8 @@ void PickNextAction(PlayerBrain* brain)
 		{
 			Vector3 v; v.x = dest->x; v.y = dest->y; v.z = dest->z;
 			WalkHere(peddy, v);
-			brain->ShopTimer = InGameTime() + RandomInt(20000, 40000);
+			brain->ShopTimer      = InGameTime() + RandomInt(20000, 40000);
+			brain->InteriorEntryID = dest->interiorID; // -1 if no interior
 		}
 		else
 		{
@@ -2112,25 +2199,43 @@ const std::vector<Vector3> PlayerHotspots = {
 	NewVector3(-1299.30f, -1128.90f,  6.99f),  // Chumash Beach
 };
 
-void DriveToHotspot(Ped peddy, Vehicle vic)
+// lawAbiding: true = friendly civilian (obeys traffic signals, modest speed)
+//             false = hostile/gang driver (reckless, ignores lights)
+// Driving style constants (GTA5 native bitmask):
+//   1074528293 = careful + follow traffic (law-abiding)
+//   786603     = aggressive / ignore lights (reckless)
+//   262956     = standard wander
+void DriveToHotspot(Ped peddy, Vehicle vic, bool lawAbiding = false)
 {
 	LoggerLight("DriveToHotspot");
 	if (!(bool)PED::IS_PED_IN_ANY_VEHICLE(peddy, 0)) return;
 	if (peddy != VEHICLE::GET_PED_IN_VEHICLE_SEAT(PED::GET_VEHICLE_PED_IS_USING(peddy), -1)) return;
 	int iSpot = LessRandomInt("Hotspot", 0, (int)PlayerHotspots.size() - 1);
 	Vector3 dest = PlayerHotspots[iSpot];
-	float fSpeed = RandomFloat(22.0f, 40.0f);
-	int iDriveStyle = 1074528293;
-	int iRand = LessRandomInt("HotspotStyle", 1, 10);
-	if (iRand > 8) iDriveStyle = 786603;
-	else if (iRand > 6) fSpeed = RandomFloat(15.0f, 25.0f);
+	int iDriveStyle;
+	float fSpeed;
+	if (lawAbiding)
+	{
+		// Civilian: obey lights, reasonable city speed (10-18 m/s ≈ 36-65 km/h)
+		iDriveStyle = 1074528293;
+		fSpeed      = RandomFloat(10.0f, 18.0f);
+	}
+	else
+	{
+		// Gang/hostile: reckless — occasionally very aggressive
+		fSpeed      = RandomFloat(22.0f, 40.0f);
+		iDriveStyle = 1074528293;
+		int iRand   = LessRandomInt("HotspotStyle", 1, 10);
+		if      (iRand > 8) iDriveStyle = 786603;
+		else if (iRand > 6) fSpeed = RandomFloat(15.0f, 25.0f);
+	}
 	AI::CLEAR_PED_TASKS(peddy);
 	AI::TASK_VEHICLE_DRIVE_TO_COORD_LONGRANGE(peddy, vic, dest.x, dest.y, dest.z, fSpeed, iDriveStyle, 15.0f);
 	PED::SET_PED_KEEP_TASK(peddy, true);
 	PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(peddy, false);
 }
 
-void DriveAround(Ped peddy)
+void DriveAround(Ped peddy, bool lawAbiding = false)
 {
 	AI::CLEAR_PED_TASKS(peddy);
 	if ((bool)PED::IS_PED_IN_ANY_VEHICLE(peddy, 0))
@@ -2138,12 +2243,23 @@ void DriveAround(Ped peddy)
 		if (peddy == VEHICLE::GET_PED_IN_VEHICLE_SEAT(PED::GET_VEHICLE_PED_IS_USING(peddy), -1))
 		{
 			Vehicle Vic = PED::GET_VEHICLE_PED_IS_IN(peddy, false);
-			int iStyle = 262956;
-			float fSpeed = 25.0f;
-			int iRand = LessRandomInt("DriveWanderStyle", 1, 10);
-			if (iRand > 8) { iStyle = 786603; fSpeed = RandomFloat(35.0f, 55.0f); }
-			else if (iRand > 5) { fSpeed = RandomFloat(22.0f, 32.0f); }
-			else { fSpeed = RandomFloat(12.0f, 22.0f); }
+			int iStyle;
+			float fSpeed;
+			if (lawAbiding)
+			{
+				// Civilian: obey traffic lights, moderate speed
+				iStyle = 1074528293;
+				fSpeed = RandomFloat(10.0f, 18.0f);
+			}
+			else
+			{
+				iStyle = 262956;
+				fSpeed = 25.0f;
+				int iRand = LessRandomInt("DriveWanderStyle", 1, 10);
+				if      (iRand > 8) { iStyle = 786603; fSpeed = RandomFloat(35.0f, 55.0f); }
+				else if (iRand > 5) { fSpeed = RandomFloat(22.0f, 32.0f); }
+				else                { fSpeed = RandomFloat(12.0f, 22.0f); }
+			}
 			AI::TASK_VEHICLE_DRIVE_WANDER(peddy, Vic, fSpeed, iStyle);
 			PED::SET_PED_KEEP_TASK(peddy, true);
 			PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(peddy, true);
@@ -3037,7 +3153,10 @@ Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 			if (!brain->IsAnimal)
 			{
 				OnlineFaces(ThisPed, &brain->PFMySetting);
-				GunningIt(ThisPed, brain->GunSelect);
+				// Friendly / civilian peds are unarmed civilians — never give them a weapon loadout.
+				// Hostile / criminal peds get a loadout via GunningIt (weapons holstered until combat).
+				if (!brain->Friendly && !brain->Follower)
+					GunningIt(ThisPed, brain->GunSelect);
 			}
 
 			if (brain->MyIdentity == "")
@@ -3095,6 +3214,42 @@ Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 
 						aggrTier = GetZoneAggressionTier(zoneName);
 
+						// -------------------------------------------------------
+						// NEIGHBORHOOD BALANCE: re-roll Friendly based on zone economy.
+						//   Wealthy  (3) = upscale areas — 85 % friendly civilians
+						//   Middle   (2) = mixed areas   — keep Aggression-based roll
+						//   Poor     (1) = high-crime    — 25 % friendly, rest hostile
+						// This overrides the global Aggression-based roll so that
+						// Vinewood feels calm and Davis/Strawberry feel dangerous.
+						// -------------------------------------------------------
+						bool wasHostile = !brain->Friendly;
+						if (brain->ZoneEconomy == 3)
+							brain->Friendly = (RandomInt(1, 100) <= 85);
+						else if (brain->ZoneEconomy == 1)
+							brain->Friendly = (RandomInt(1, 100) <= 25);
+						// ZoneEconomy == 2: leave Friendly unchanged (Aggression roll stands)
+
+						// If the economy re-roll changed the alignment, fix relationship group.
+						if (wasHostile && brain->Friendly)
+						{
+							// Was hostile → now civilian: strip any weapon loadout given by GunningIt.
+							WEAPON::REMOVE_ALL_PED_WEAPONS(ThisPed, true);
+							brain->ArmedWeaponHash = 0;
+							brain->IsCriminal      = false;
+							brain->IsDealer        = false;
+							brain->BlipColour = 0;
+							UI::SET_BLIP_COLOUR(brain->ThisBlip, 0);
+							RelGroupMember(ThisPed, Gp_Friend);
+						}
+						else if (!wasHostile && !brain->Friendly)
+						{
+							// Was friendly → now hostile: give them a weapon loadout (holstered).
+							GunningIt(ThisPed, brain->GunSelect);
+							brain->BlipColour = 1;
+							UI::SET_BLIP_COLOUR(brain->ThisBlip, 1);
+							FightPlayer(brain);
+						}
+
 						const LSRGangProfile* gp = nullptr;
 						if (!brain->GangID.empty())
 						{
@@ -3119,14 +3274,30 @@ Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 						else if (h >= 18 && h < 22) brain->SchedulePhase = 2;
 						else                         brain->SchedulePhase = 3;
 
-						if (RandomInt(1, 100) <= crimChance)
+						// Friendly / civilian peds never commit crimes and are never armed.
+						// Hostile peds roll for criminal status and get a holstered weapon.
+						if (!brain->Friendly)
 						{
-							brain->IsCriminal = true;
-							if (RandomInt(1, 100) <= dealerChance)
-								brain->IsDealer = true;
+							if (RandomInt(1, 100) <= crimChance)
+							{
+								brain->IsCriminal = true;
+								if (RandomInt(1, 100) <= dealerChance)
+									brain->IsDealer = true;
 
-							// Arm the criminal — weapon given holstered (no draw, no wanted level).
-							ArmCriminalPed(brain, gp);
+								// Arm the criminal — weapon given holstered (no draw, no wanted level).
+								ArmCriminalPed(brain, gp);
+							}
+						}
+						else
+						{
+							// Civilian: clear any crime flags, configure flee-first behaviour.
+							brain->IsCriminal = false;
+							brain->IsDealer   = false;
+							PED::SET_PED_FLEE_ATTRIBUTES(ThisPed, 1, true); // flee from nearby weapons
+							PED::SET_PED_FLEE_ATTRIBUTES(ThisPed, 2, true); // flee when injured
+							PED::SET_PED_COMBAT_ATTRIBUTES(ThisPed, 5,  true); // can flee
+							PED::SET_PED_COMBAT_ATTRIBUTES(ThisPed, 17, true); // flee from fire
+							PED::SET_PED_COMBAT_ATTRIBUTES(ThisPed, 52, true); // disengage if out of LoS
 						}
 					}
 					else
@@ -3137,12 +3308,31 @@ Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 							spawnPos.x, spawnPos.y, spawnPos.z));
 						aggrTier = GetZoneAggressionTier(zoneName);
 
-						if (RandomInt(1, 100) <= crimChance)
+						// In standalone mode use aggression tier to bias the friendly roll:
+						// High-crime zone (tier 3) = at most 35 % friendly.
+						// Low-crime zone  (tier 1) = at least 75 % friendly.
+						if      (aggrTier == 1) brain->Friendly = (RandomInt(1, 100) <= 75);
+						else if (aggrTier == 3) brain->Friendly = (RandomInt(1, 100) <= 35);
+
+						if (!brain->Friendly)
 						{
-							brain->IsCriminal = true;
-							if (RandomInt(1, 100) <= dealerChance)
-								brain->IsDealer = true;
-							ArmCriminalPed(brain, nullptr);
+							if (RandomInt(1, 100) <= crimChance)
+							{
+								brain->IsCriminal = true;
+								if (RandomInt(1, 100) <= dealerChance)
+									brain->IsDealer = true;
+								ArmCriminalPed(brain, nullptr);
+							}
+						}
+						else
+						{
+							brain->IsCriminal = false;
+							brain->IsDealer   = false;
+							PED::SET_PED_FLEE_ATTRIBUTES(ThisPed, 1, true);
+							PED::SET_PED_FLEE_ATTRIBUTES(ThisPed, 2, true);
+							PED::SET_PED_COMBAT_ATTRIBUTES(ThisPed, 5,  true);
+							PED::SET_PED_COMBAT_ATTRIBUTES(ThisPed, 17, true);
+							PED::SET_PED_COMBAT_ATTRIBUTES(ThisPed, 52, true);
 						}
 					}
 
@@ -4998,7 +5188,7 @@ void ProcessPZ(PlayerBrain* brain)
 										{
 											if (brain->FindPlayer < GameTime)
 											{
-												DriveAround(PlayZero);
+												DriveAround(PlayZero, brain->Friendly);
 												brain->FindPlayer = GameTime + 25000;
 											}
 										}
@@ -5026,7 +5216,7 @@ void ProcessPZ(PlayerBrain* brain)
 												// Low aggression: cruise to hotspot instead of fighting from vehicle
 												if (MySettings.Aggression <= 3 && LessRandomInt("FriHotDrive", 1, 10) < 9)
 												{
-													DriveToHotspot(PlayZero, brain->ThisVeh);
+													DriveToHotspot(PlayZero, brain->ThisVeh, brain->Friendly);
 													brain->FindPlayer = GameTime + 60000;
 												}
 												else
@@ -5058,7 +5248,7 @@ void ProcessPZ(PlayerBrain* brain)
 									{
 										if (brain->FindPlayer < GameTime)
 										{
-											DriveAround(PlayZero);
+											DriveAround(PlayZero, brain->Friendly);
 											brain->FindPlayer = GameTime + 25000;
 										}
 									}
@@ -5084,7 +5274,7 @@ void ProcessPZ(PlayerBrain* brain)
 										else if (MySettings.Aggression <= 3 && LessRandomInt("FriHotDrive", 1, 10) < 9)
 										{
 											// Aggression 2-3: cruise to a hotspot like a real player
-											DriveToHotspot(PlayZero, brain->ThisVeh);
+											DriveToHotspot(PlayZero, brain->ThisVeh, brain->Friendly);
 											brain->FindPlayer = GameTime + 60000;
 										}
 										else
@@ -5092,7 +5282,7 @@ void ProcessPZ(PlayerBrain* brain)
 											// Low aggression: cruise to hotspot instead of fighting from vehicle
 											if (MySettings.Aggression <= 3 && LessRandomInt("FriHotDrive", 1, 10) < 9)
 											{
-												DriveToHotspot(PlayZero, brain->ThisVeh);
+												DriveToHotspot(PlayZero, brain->ThisVeh, brain->Friendly);
 												brain->FindPlayer = GameTime + 60000;
 											}
 											else
@@ -5183,6 +5373,100 @@ void ProcessPZ(PlayerBrain* brain)
 									AI::TASK_AIM_GUN_AT_COORD(peddy, aimX, aimY, pos.z, 10000, false, false);
 									brain->ShopTimer     = 0;
 									brain->ScenarioTimer = GameTime + RandomInt(8000, 14000);
+								}
+										else if (brain->InteriorEntryID != -1 && !brain->InsideInterior && !brain->ShopBrowsing)
+										{
+											// Interior phase 1: ped arrived at the entrance ΓÇö holster if restricted,
+											// then walk 5 m inward to simulate entering the store.
+											Ped peddy2 = brain->ThisPed;
+											const LSRInterior* intr = LSRData::GetInterior(brain->InteriorEntryID);
+											if (intr && intr->isWeaponRestricted && brain->ArmedWeaponHash != 0)
+											    WEAPON::SET_CURRENT_PED_WEAPON(peddy2,
+											        GAMEPLAY::GET_HASH_KEY("WEAPON_UNARMED"), true);
+											// Walk a few metres inside from the entrance
+											float inHdg = ENTITY::GET_ENTITY_HEADING(peddy2) * 0.0174533f;
+											Vector3 inPos = ENTITY::GET_ENTITY_COORDS(peddy2, true);
+											inPos.x += cosf(inHdg) * 5.0f;
+											inPos.y += sinf(inHdg) * 5.0f;
+											WalkHere(peddy2, inPos);
+											PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(peddy2, true);
+											brain->InsideInterior = true;
+											brain->ShopTimer      = GameTime + RandomInt(8000, 14000);  // walk-in time
+										}
+										else if (brain->InsideInterior && !brain->ShopBrowsing)
+										{
+											// Interior phase 2: look for a nearby ambient clerk ped (non-PZ)
+											// to walk up to, simulating a counter purchase. If none exists,
+											// play a browsing scenario in place.
+											Ped peddy2 = brain->ThisPed;
+											Vector3 myPos2 = ENTITY::GET_ENTITY_COORDS(peddy2, true);
+											int nearBuf[256] = {};
+											PED::GET_PED_NEARBY_PEDS(peddy2, nearBuf, -1);
+											int nearN = nearBuf[0];
+											if (nearN > 255) nearN = 255;
+											Ped clerkPed = 0;
+											for (int ki = 1; ki <= nearN; ki++)
+											{
+												Ped cand = (Ped)nearBuf[ki];
+												if (!cand || !(bool)ENTITY::DOES_ENTITY_EXIST(cand)) continue;
+												if ((bool)ENTITY::IS_ENTITY_DEAD(cand))              continue;
+												if ((bool)PED::IS_PED_A_PLAYER(cand))               continue;
+												bool isPZ = false;
+												for (int pi = 0; pi < (int)PedList.size(); pi++)
+													if (PedList[pi].ThisPed == cand) { isPZ = true; break; }
+												if (isPZ) continue;
+												if (DistanceTo(cand, myPos2) < 9.0f) { clerkPed = cand; break; }
+											}
+											AI::CLEAR_PED_TASKS(peddy2);
+											int browseMs = RandomInt(25000, 60000);
+											if (clerkPed != 0)
+											{
+												// Walk up to the clerk and wait nearby — looks like a purchase
+												AI::TASK_GO_TO_ENTITY(peddy2, clerkPed, browseMs, 1.2f, 1.0f, 0, 0);
+											}
+											else
+											{
+												static const char* shopAnims[] = {
+												    "WORLD_HUMAN_BROWSING",
+												    "WORLD_HUMAN_STAND_MOBILE",
+												    "WORLD_HUMAN_CLIPBOARD"
+												};
+												AI::TASK_START_SCENARIO_IN_PLACE(
+												    peddy2, (LPSTR)shopAnims[RandomInt(0, 2)], 0, true);
+											}
+											PED::SET_PED_KEEP_TASK(peddy2, true);
+											PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(peddy2, true);
+											brain->ShopBrowsing = true;
+											brain->ShopTimer    = GameTime + browseMs;
+										}
+										else if (brain->ShopBrowsing)
+										{
+											// Interior phase 3: done browsing ΓÇö exit the shop.
+											Ped peddy2 = brain->ThisPed;
+											AI::CLEAR_PED_TASKS(peddy2);
+											brain->InsideInterior  = false;
+											brain->ShopBrowsing    = false;
+											brain->InteriorEntryID = -1;
+											brain->ShopTimer       = 0;
+											PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(peddy2, false);
+											Vector3 ePos = ENTITY::GET_ENTITY_COORDS(peddy2, true);
+											float eAngle = (float)(rand() % 360) * 0.0174533f;
+											Vector3 eExit; eExit.x = ePos.x + cosf(eAngle) * 15.0f;
+											               eExit.y = ePos.y + sinf(eAngle) * 15.0f; eExit.z = ePos.z;
+											WalkHere(peddy2, eExit);
+											brain->FindPlayer = GameTime + RandomInt(20000, 40000);
+										}
+								else if (brain->DrugBuyTarget != NULL)
+								{
+									// Drug purchase complete: buyer has reached the dealer and waited.
+									// Clear task, allow events, walk off naturally.
+									Ped peddy2 = brain->ThisPed;
+									AI::CLEAR_PED_TASKS(peddy2);
+									PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(peddy2, false);
+									brain->DrugBuyTarget = NULL;
+									brain->ShopTimer     = 0;
+									brain->FindPlayer    = GameTime + RandomInt(20000, 40000);
+									PickNextAction(brain);
 								}
 								else
 								{
@@ -5276,49 +5560,105 @@ void ProcessPZ(PlayerBrain* brain)
 							ENTITY::SET_ENTITY_ALPHA(brain->ThisVeh, 255, false);
 							brain->Driver = false;
 						}
+						// --- STUCK VEHICLE RECOVERY (checked every 30 s) ---
+						// 30 s window avoids false-triggering on red-light stops (8-15 s).
+						// Only re-route if the vehicle hasn't moved 3 m over the full window,
+						// which means the ped is genuinely wedged against a wall, post, etc.
+						if (ENTITY::DOES_ENTITY_EXIST(brain->ThisVeh) && brain->StuckCheckTimer < GameTime)
+						{
+							brain->StuckCheckTimer = GameTime + 30000;
+							float curX = ENTITY::GET_ENTITY_COORDS(brain->ThisVeh, true).x;
+							float curY = ENTITY::GET_ENTITY_COORDS(brain->ThisVeh, true).y;
+							float moved = sqrtf((curX - brain->LastStuckX) * (curX - brain->LastStuckX) +
+							                    (curY - brain->LastStuckY) * (curY - brain->LastStuckY));
+							if (moved < 3.0f && ENTITY::GET_ENTITY_SPEED(brain->ThisVeh) < 0.5f &&
+							    !brain->IsPulledOver && brain->ThisEnemy == NULL)
+							{
+								// Unstick: clear tasks and re-route to a hotspot
+								AI::CLEAR_PED_TASKS(PlayZero);
+								DriveToHotspot(PlayZero, brain->ThisVeh, brain->Friendly);
+								brain->FindPlayer = GameTime + RandomInt(20000, 40000);
+							}
+							brain->LastStuckX = curX;
+							brain->LastStuckY = curY;
+						}
 						else if (brain->FindPlayer < GameTime)
 						{
-							if (brain->ThisEnemy != NULL)
+							// Traffic stop: while pulled over, wait for timer, then resume.
+							if (brain->IsPulledOver)
 							{
-								if (!(bool)ENTITY::DOES_ENTITY_EXIST(brain->ThisEnemy))
-									brain->ThisEnemy = NULL;
-								else if ((bool)ENTITY::IS_ENTITY_DEAD(brain->ThisEnemy))
-									brain->ThisEnemy = NULL;
-							}
-							else if (FindUSeat(brain->ThisVeh, false) != -10)
-							{
-								PlayerBrain* ThisBrian = FindaPassenger(false);
-								if (ThisBrian != nullptr)
-									PedDoGetIn(brain->ThisVeh, ThisBrian);
-							}
-							else if (MySettings.Aggression <= 3 && LessRandomInt("HostHotDrive", 1, 10) < 8)
-							{
-								// Aggression 2-3: cruise to a hotspot before engaging
-								DriveToHotspot(PlayZero, brain->ThisVeh);
-								brain->FindPlayer = GameTime + 50000;
+								if (brain->PulloverTimer < GameTime)
+								{
+									brain->IsPulledOver = false;
+									brain->FindPlayer   = GameTime + RandomInt(30000, 60000);
+								}
 							}
 							else
 							{
-								if (brain->FindPlayer < GameTime)
+								// Roll for a traffic violation every 10 game-seconds when not in combat.
+								if (brain->TrafficViolTimer < GameTime &&
+								    brain->ThisEnemy == NULL &&
+								    ENTITY::DOES_ENTITY_EXIST(brain->ThisVeh))
 								{
-									// Low aggression: usually cruise to hotspot instead of fighting
-									if (MySettings.Aggression <= 3 && RandomInt(1, 10) < 8)
+									brain->TrafficViolTimer = GameTime + 10000;
+									float spd = ENTITY::GET_ENTITY_SPEED(brain->ThisVeh);
+									// >28 m/s (~100 km/h) = speeding; 3% chance = other violation
+									if (spd > 28.0f || RandomInt(1, 100) <= 3)
 									{
-										DriveToHotspot(PlayZero, brain->ThisVeh);
-										brain->FindPlayer = GameTime + RandomInt(45000, 90000);
+										Vector3 vPos = ENTITY::GET_ENTITY_COORDS(brain->ThisVeh, true);
+										float   hdg  = ENTITY::GET_ENTITY_HEADING(brain->ThisVeh);
+										AI::TASK_VEHICLE_PARK(PlayZero, brain->ThisVeh,
+										    vPos.x, vPos.y, vPos.z, hdg, 1, 20.0f, false);
+										brain->IsPulledOver  = true;
+										brain->PulloverTimer = GameTime + RandomInt(40000, 75000);
+									}
+								}
+
+								if (!brain->IsPulledOver)
+								{
+									if (brain->ThisEnemy != NULL)
+									{
+										if (!(bool)ENTITY::DOES_ENTITY_EXIST(brain->ThisEnemy))
+										    brain->ThisEnemy = NULL;
+										else if ((bool)ENTITY::IS_ENTITY_DEAD(brain->ThisEnemy))
+										    brain->ThisEnemy = NULL;
+									}
+									else if (FindUSeat(brain->ThisVeh, false) != -10)
+									{
+										PlayerBrain* ThisBrian = FindaPassenger(false);
+										if (ThisBrian != nullptr)
+											PedDoGetIn(brain->ThisVeh, ThisBrian);
+									}
+									else if (MySettings.Aggression <= 3 && LessRandomInt("HostHotDrive", 1, 10) < 8)
+									{
+										// Aggression 2-3: cruise to a hotspot before engaging
+										DriveToHotspot(PlayZero, brain->ThisVeh, brain->Friendly);
+										brain->FindPlayer = GameTime + 50000;
 									}
 									else
 									{
-										brain->ThisEnemy = FindAFight(brain);
-										if (brain->ThisEnemy == NULL)
+										if (brain->FindPlayer < GameTime)
 										{
-											brain->ThisEnemy = PLAYER::PLAYER_PED_ID();
-											PickFight(PlayZero, brain->ThisVeh, brain->ThisEnemy, brain->PrefredVehicle);
-										}
-										else 
-											PickFight(PlayZero, brain->ThisVeh, brain->ThisEnemy, brain->PrefredVehicle);
+											// Low aggression: usually cruise to hotspot instead of fighting
+											if (MySettings.Aggression <= 3 && RandomInt(1, 10) < 8)
+											{
+											    DriveToHotspot(PlayZero, brain->ThisVeh, brain->Friendly);
+											    brain->FindPlayer = GameTime + RandomInt(45000, 90000);
+											}
+											else
+											{
+											    brain->ThisEnemy = FindAFight(brain);
+											    if (brain->ThisEnemy == NULL)
+											    {
+											        brain->ThisEnemy = PLAYER::PLAYER_PED_ID();
+											        PickFight(PlayZero, brain->ThisVeh, brain->ThisEnemy, brain->PrefredVehicle);
+											    }
+											    else
+											        PickFight(PlayZero, brain->ThisVeh, brain->ThisEnemy, brain->PrefredVehicle);
 
-										brain->FindPlayer = GameTime + RandomInt(30000, 45000);
+											    brain->FindPlayer = GameTime + RandomInt(30000, 45000);
+											}
+										}
 									}
 								}
 							}
@@ -5346,6 +5686,68 @@ void ProcessPZ(PlayerBrain* brain)
 							}
 						}
 
+
+						// --- POLICE INTERACTION (checked every 10 s) ---
+						// Friendly peds surrender; hostile peds resist/attack depending on aggression tier.
+						if (!brain->Follower && brain->CopReactionTimer < GameTime)
+						{
+							brain->CopReactionTimer = GameTime + 10000;
+							if ((bool)AI::IS_PED_BEING_ARRESTED(PlayZero))
+							{
+								if (brain->Friendly)
+								{
+									// Civilian surrender: raise hands, allow arrest
+									AI::CLEAR_PED_TASKS(PlayZero);
+									AI::TASK_HANDS_UP(PlayZero, 15000, NULL, -1, false);
+									PED::SET_PED_KEEP_TASK(PlayZero, true);
+									PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(PlayZero, true);
+									brain->FindPlayer = GameTime + 16000;
+								}
+								else
+								{
+									// Criminal: fight back or sprint-flee based on zone aggression tier
+									AI::CLEAR_PED_TASKS(PlayZero);
+									if (brain->AggressionTier >= 3)
+									{
+										// High-crime zone: attack the arresting officer
+										Ped srcCop = PED::_GET_PED_KILLER(PlayZero);
+										Ped fightTarget = (srcCop != NULL && (bool)ENTITY::DOES_ENTITY_EXIST(srcCop)) ? srcCop : ThePlayer;
+										GreefWar(PlayZero, fightTarget);
+										brain->ThisEnemy = fightTarget;
+									}
+									else
+									{
+										// Lower zone: flee
+										AI::TASK_SMART_FLEE_PED(PlayZero, ThePlayer, 300.0f, -1, false, false);
+										PED::SET_PED_KEEP_TASK(PlayZero, true);
+										brain->ThisEnemy = NULL;
+									}
+									brain->FindPlayer = GameTime + RandomInt(20000, 35000);
+								}
+							}
+						}
+
+						// --- FRIENDLY PEDS FLEE NEARBY GUNFIGHTS ---
+						// When any hostile PZ ped within 60 m is actively firing, civilians scatter.
+						if (brain->Friendly && !brain->Follower && brain->FindPlayer < GameTime + 10000)
+						{
+							for (int fi = 0; fi < (int)PedList.size(); fi++)
+							{
+								PlayerBrain& threat = PedList[fi];
+								if (!threat.Friendly && !threat.YoDeeeed &&
+								    threat.ThisPed != NULL &&
+								    DistanceTo(threat.ThisPed, PedPos) < 60.0f &&
+								    (bool)PED::IS_PED_SHOOTING(threat.ThisPed))
+								{
+									AI::CLEAR_PED_TASKS(PlayZero);
+									AI::TASK_SMART_FLEE_PED(PlayZero, threat.ThisPed, 200.0f, -1, false, false);
+									PED::SET_PED_KEEP_TASK(PlayZero, true);
+									brain->ThisEnemy = NULL;
+									brain->FindPlayer = GameTime + RandomInt(25000, 45000);
+									break;
+								}
+							}
+						}
 						if (brain->FindPlayer < GameTime)
 						{
 							brain->FindPlayer = GameTime + 1000;

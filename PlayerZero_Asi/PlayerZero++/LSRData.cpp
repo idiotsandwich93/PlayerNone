@@ -17,6 +17,8 @@ std::unordered_map<std::string, std::string>              LSRData::ZoneGangMap;
 std::unordered_map<std::string, std::string>              LSRData::ZoneEconomyMap;
 std::unordered_map<std::string, LSRGangProfile>           LSRData::GangProfiles;
 std::unordered_map<std::string, std::vector<LSRLocation>> LSRData::Locations;
+std::unordered_map<int, LSRInterior>                        LSRData::Interiors;
+std::vector<std::string>                                    LSRData::IntoxicantNames;
 
 // ---------------------------------------------------------------------------
 // XML helpers
@@ -273,6 +275,8 @@ void LSRData::Init(const std::string& lsrRoot) {
     LoadZones      (lsrRoot + "/Zones.xml");
     LoadGangs      (lsrRoot + "/Gangs.xml");
     LoadLocations  (lsrRoot + "/Locations.xml");
+    LoadInteriors  (lsrRoot + "/Interiors.xml");
+    LoadIntoxicants(lsrRoot + "/Itoxicants.xml");
 
     IsAvailable = true;
 
@@ -391,4 +395,97 @@ int LSRData::LocationCount(const std::string& typeName) {
     if (!IsAvailable) return 0;
     auto it = Locations.find(typeName);
     return (it != Locations.end()) ? (int)it->second.size() : 0;
+}
+
+// ---------------------------------------------------------------------------
+// LoadInteriors â€” reads Interiors.xml into the Interiors map.
+// Stores LocalID, Name, and IsWeaponRestricted for each interior entry.
+// ---------------------------------------------------------------------------
+void LSRData::LoadInteriors(const std::string& path) {
+    ParseBlocks(path, "Interior", [](const std::string& blk) {
+        LSRInterior interior;
+        bool gotID = false;
+        std::istringstream ss(blk);
+        std::string line;
+        while (std::getline(ss, line)) {
+            if (!gotID && line.find("<LocalID>") != std::string::npos) {
+                std::string v = GetTagValue(line, "LocalID");
+                if (!v.empty()) {
+                    try { interior.localID = std::stoi(v); gotID = true; } catch (...) {}
+                }
+            }
+            if (interior.name.empty() && line.find("<Name>") != std::string::npos)
+                interior.name = GetTagValue(line, "Name");
+            if (line.find("<IsWeaponRestricted>") != std::string::npos)
+                interior.isWeaponRestricted = GetTagBool(line, "IsWeaponRestricted");
+        }
+        if (gotID)
+            Interiors[interior.localID] = interior;
+    });
+}
+
+const LSRInterior* LSRData::GetInterior(int localID) {
+    auto it = Interiors.find(localID);
+    return (it != Interiors.end()) ? &it->second : nullptr;
+}
+
+const LSRLocation* LSRData::GetNearestLocationWithInterior(
+    float px, float py, float pz, float maxDist)
+{
+    if (!IsAvailable) return nullptr;
+    const LSRLocation* best = nullptr;
+    float bestDistSq = maxDist * maxDist;
+    for (const auto& kv : Locations) {
+        for (const auto& loc : kv.second) {
+            if (loc.interiorID == -1) continue;
+            float dx = loc.x - px, dy = loc.y - py;
+            float d = dx*dx + dy*dy;
+            if (d < bestDistSq) { bestDistSq = d; best = &loc; }
+        }
+    }
+    return best;
+}
+
+// ---------------------------------------------------------------------------
+// LoadIntoxicants — reads Itoxicants.xml (and optionally LSRPDRUGS variant)
+// Populates IntoxicantNames with every <Name> found in <Intoxicant> blocks.
+// ---------------------------------------------------------------------------
+void LSRData::LoadIntoxicants(const std::string& path)
+{
+    // Parse main file
+    ParseBlocks(path, "Intoxicant", [](const std::string& blk) {
+        std::istringstream ss(blk);
+        std::string line;
+        while (std::getline(ss, line)) {
+            if (line.find("<Name>") != std::string::npos) {
+                std::string name = GetTagValue(line, "Name");
+                if (!name.empty())
+                    IntoxicantNames.push_back(name);
+                break;
+            }
+        }
+    });
+
+    // Also pull in the LSRPDRUGS expansion pack if present
+    std::string plusPath = path.substr(0, path.rfind('/') + 1) + "Itoxicants+_LSRPDRUGS.xml";
+    ParseBlocks(plusPath, "Intoxicant", [](const std::string& blk) {
+        std::istringstream ss(blk);
+        std::string line;
+        while (std::getline(ss, line)) {
+            if (line.find("<Name>") != std::string::npos) {
+                std::string name = GetTagValue(line, "Name");
+                if (!name.empty())
+                    IntoxicantNames.push_back(name);
+                break;
+            }
+        }
+    });
+}
+
+// Returns a random intoxicant name. Falls back to "something" if the list is empty.
+const std::string& LSRData::GetRandomIntoxicant()
+{
+    static std::string fallback = "something";
+    if (IntoxicantNames.empty()) return fallback;
+    return IntoxicantNames[(size_t)std::rand() % IntoxicantNames.size()];
 }

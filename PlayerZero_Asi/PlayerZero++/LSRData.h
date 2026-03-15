@@ -25,6 +25,16 @@ struct LSRGangProfile {
     int hostileRepLevel      = -200;
 };
 
+struct LSRInterior {
+    int         localID            = -1;
+    std::string name;
+    bool        isWeaponRestricted = false;
+};
+
+struct LSRIntoxicant {
+    std::string name; // e.g. "Marijuana", "Cocaine", "SPANK"
+};
+
 struct LSRLocation {
     std::string typeName; // "GangDen", "Restaurant", "Bar", etc.
     float x         = 0.0f;
@@ -32,6 +42,7 @@ struct LSRLocation {
     float z         = 0.0f;
     int   openTime  = 0;  // in-game hour 0-24
     int   closeTime = 24;
+    int   interiorID = -1; // LocalID in Interiors.xml; -1 = no linked interior
 };
 
 // ---------------------------------------------------------------------------
@@ -80,6 +91,13 @@ public:
     static const LSRLocation* GetNearestLocationWithin(
         float px, float py, float pz, const std::string& typeName, float maxDist);
 
+    // Nearest location of ANY type with a linked interior within maxDist metres.
+    static const LSRLocation* GetNearestLocationWithInterior(
+        float px, float py, float pz, float maxDist);
+
+    // Interior data for a given LocalID, or nullptr if not found.
+    static const LSRInterior* GetInterior(int localID);
+
     // Hour-aware nightlife destination: bars at night, restaurants at evening.
     static const LSRLocation* GetNightlifeLocation(int hour);
 
@@ -89,16 +107,24 @@ public:
     // Count of loaded locations for a type (0 if LSR not available).
     static int LocationCount(const std::string& typeName);
 
+    // Random drug/intoxicant name from Itoxicants.xml, e.g. "Marijuana", "Cocaine".
+    // Returns "something" if LSR not available or file not found.
+    static const std::string& GetRandomIntoxicant();
+
 private:
     static std::unordered_map<std::string, std::string>                ZoneGangMap;
     static std::unordered_map<std::string, std::string>                ZoneEconomyMap;
     static std::unordered_map<std::string, LSRGangProfile>             GangProfiles;
     static std::unordered_map<std::string, std::vector<LSRLocation>>   Locations;
+    static std::unordered_map<int, LSRInterior>                        Interiors;
+    static std::vector<std::string>                                    IntoxicantNames;
 
     static void LoadTerritories(const std::string& path);
     static void LoadZones(const std::string& path);
     static void LoadGangs(const std::string& path);
     static void LoadLocations(const std::string& path);
+    static void LoadInteriors(const std::string& path);
+    static void LoadIntoxicants(const std::string& path);
 
     // Reads the file at path, accumulates text between <blockTag> and </blockTag>,
     // and fires callback(block) for each complete block found.
