@@ -918,12 +918,12 @@ namespace PZSys
 			Vector3 pPos = PlayerPosi();
 			for (int i = 0; i < (int)PedList.size(); i++)
 				if (!PedList[i].Driver && !PedList[i].Passenger &&
-					DistanceTo(PedList[i].ThisPed, pPos) < 80.0f)
+					DistanceTo(PedList[i].ThisPed, pPos) < 100.0f)
 					nearCount++;
 
-			if (nearCount < 6)
+			if (nearCount < 2)
 			{
-				Pos = InAreaOf(PlayerPosi(), 30.0f, 60.0f);
+				Pos = InAreaOf(PlayerPosi(), 50.0f, 100.0f);
 				NearestToo(&Pos, YankSpPoint, LastDropPed, 10.0f);
 			}
 			else
@@ -940,7 +940,7 @@ namespace PZSys
 					Pos = PedPlace(rCenter);
 				else
 				{
-					Pos = InAreaOf(PlayerPosi(), 30.0f, 60.0f);
+					Pos = InAreaOf(PlayerPosi(), 50.0f, 100.0f);
 					NearestToo(&Pos, YankSpPoint, LastDropPed, 10.0f);
 				}
 			}
@@ -952,12 +952,12 @@ namespace PZSys
 			Vector3 pPos = PlayerPosi();
 			for (int i = 0; i < (int)PedList.size(); i++)
 				if (!PedList[i].Driver && !PedList[i].Passenger &&
-					DistanceTo(PedList[i].ThisPed, pPos) < 80.0f)
+					DistanceTo(PedList[i].ThisPed, pPos) < 100.0f)
 					nearCount++;
 
-			if (nearCount < 6)
+			if (nearCount < 2)
 			{
-				Pos = InAreaOf(PlayerPosi(), 30.0f, 60.0f);
+				Pos = InAreaOf(PlayerPosi(), 50.0f, 100.0f);
 				NearestToo(&Pos, CayoSpPoint, LastDropPed, 10.0f);
 			}
 			else
@@ -973,7 +973,7 @@ namespace PZSys
 					Pos = PedPlace(rCenter);
 				else
 				{
-					Pos = InAreaOf(PlayerPosi(), 30.0f, 60.0f);
+					Pos = InAreaOf(PlayerPosi(), 50.0f, 100.0f);
 					NearestToo(&Pos, CayoSpPoint, LastDropPed, 10.0f);
 				}
 			}
@@ -986,20 +986,22 @@ namespace PZSys
 			Vector3 pPos = PlayerPosi();
 			const bool isLC = (pPos.x > 2800.0f);
 
-			// Cap near-player spawns at 6 on-foot peds within 80m.
+			// Cap near-player spawns: only 2 on-foot peds allowed within 100m before
+			// switching to location-based spawns. Larger radius (50-100m) means new
+			// peds start further away and never immediately crowd the player.
 			int nearCount = 0;
 			for (int i = 0; i < (int)PedList.size(); i++)
 			{
 				if (!PedList[i].Driver && !PedList[i].Passenger &&
-					DistanceTo(PedList[i].ThisPed, pPos) < 80.0f)
+					DistanceTo(PedList[i].ThisPed, pPos) < 100.0f)
 				{
 					nearCount++;
 				}
 			}
 
-			if (nearCount < 6)
+			if (nearCount < 2)
 			{
-				Pos = InAreaOf(PlayerPosi(), 30.0f, 60.0f);
+				Pos = InAreaOf(PlayerPosi(), 50.0f, 100.0f);
 			}
 			else
 			{
@@ -1024,7 +1026,7 @@ namespace PZSys
 				// fall back to near-player spawn so peds never drown off-map.
 				const Vector4& chosen = locList[picked];
 				if ((chosen.X > 2800.0f) != isLC)
-					Pos = InAreaOf(PlayerPosi(), 30.0f, 60.0f);
+					Pos = InAreaOf(PlayerPosi(), 50.0f, 100.0f);
 				else
 					Pos = Vector4(chosen.X, chosen.Y, chosen.Z, chosen.R);
 			}

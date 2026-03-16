@@ -2200,11 +2200,12 @@ void PickNextAction(PlayerBrain* brain)
 	}
 	else if (LSRData::IsAvailable)
 	{
-		// Route to a time-of-day appropriate LSR location that is within 250m.
-		// Locations further away are skipped — peds would despawn before arriving.
+		// Route to a time-of-day appropriate LSR location.
+		// LC businesses can be spread further apart than LS, so we use a larger
+		// search radius (400m) to ensure LC peds always find a destination.
 		int hour = TIME::GET_CLOCK_HOURS();
 		Vector3 pedPos = ENTITY::GET_ENTITY_COORDS(peddy, true);
-		const float MAX_ROUTE_DIST = 250.0f;
+		const float MAX_ROUTE_DIST = 400.0f;
 
 		const LSRLocation* dest = nullptr;
 

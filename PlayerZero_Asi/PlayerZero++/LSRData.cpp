@@ -182,6 +182,7 @@ void LSRData::LoadLocations(const std::string& path) {
     int  posState    = 0; // 0=waiting for EntrancePosition, 1=gotX, 2=gotXY, 3=complete
     float curX = 0, curY = 0, curZ = 0;
     int   curOpen = 0, curClose = 24;
+    int   curInteriorID = -1;
     std::string curGangID;
 
     std::string line;
@@ -215,8 +216,9 @@ void LSRData::LoadLocations(const std::string& path) {
             inItem    = true;
             posState  = 0;
             curX = curY = curZ = 0.0f;
-            curOpen   = 0;
-            curClose  = 24;
+            curOpen       = 0;
+            curClose      = 24;
+            curInteriorID = -1;
             curGangID.clear();
             continue;
         }
@@ -225,13 +227,14 @@ void LSRData::LoadLocations(const std::string& path) {
         if (inItem && line.find("</" + currentItem + ">") != std::string::npos) {
             if (posState == 3) { // we captured a valid position
                 LSRLocation loc;
-                loc.typeName  = currentItem;
-                loc.gangID    = curGangID;
-                loc.x         = curX;
-                loc.y         = curY;
-                loc.z         = curZ;
-                loc.openTime  = curOpen;
-                loc.closeTime = curClose;
+                loc.typeName   = currentItem;
+                loc.gangID     = curGangID;
+                loc.x          = curX;
+                loc.y          = curY;
+                loc.z          = curZ;
+                loc.openTime   = curOpen;
+                loc.closeTime  = curClose;
+                loc.interiorID = curInteriorID;
                 Locations[currentItem].push_back(loc);
             }
             inItem = false;
@@ -260,6 +263,8 @@ void LSRData::LoadLocations(const std::string& path) {
             curOpen  = GetTagInt(line, "OpenTime");
         if (line.find("<CloseTime>") != std::string::npos)
             curClose = GetTagInt(line, "CloseTime");
+        if (line.find("<InteriorID>") != std::string::npos)
+            curInteriorID = GetTagInt(line, "InteriorID");
         // GangDen only: capture which gang owns this den.
         if (currentItem == "GangDen" &&
             line.find("<AssignedAssociationID>") != std::string::npos)
@@ -326,6 +331,7 @@ void LSRData::Init(const std::string& lsrRoot) {
             LoadZones       (lsrRoot + "/Zones_LPP.xml");
             LoadGangs       (lsrRoot + "/Gangs_LPP.xml");
             LoadLocations   (lsrRoot + "/Locations_LPP.xml");
+            LoadInteriors   (lsrRoot + "/Interiors_LPP.xml");
             LoadGangPeds    (lsrRoot + "/DispatchablePeople_LPP.xml");
             LoadGangVehicles(lsrRoot + "/DispatchableVehicles_LPP.xml");
 
