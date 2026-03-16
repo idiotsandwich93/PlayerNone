@@ -980,17 +980,11 @@ namespace PZSys
 		}
 		else
 		{
-			// Re-detect active map every 15 seconds.
-			// LC (LCPP) occupies X > 2800; LS occupies X <= 2800.
-			static bool  s_isLC         = false;
-			static DWORD s_lastMapCheck = 0;
+			// Determine active map on every call (cheap: one PlayerPosi() + one compare).
+			// Removing the old 15-second static cache fixes a stale-flag window that
+			// sent LS peds to LC coordinates (X > 2800 = off-map ocean in LS = drowning).
 			Vector3 pPos = PlayerPosi();
-			DWORD nowMs = GetTickCount();
-			if (nowMs - s_lastMapCheck > 15000 && (pPos.x != 0.0f || pPos.y != 0.0f))
-			{
-				s_isLC         = (pPos.x > 2800.0f);
-				s_lastMapCheck = nowMs;
-			}
+			const bool isLC = (pPos.x > 2800.0f);
 
 			// Cap near-player spawns at 6 on-foot peds within 80m.
 			int nearCount = 0;
@@ -1010,7 +1004,7 @@ namespace PZSys
 			else
 			{
 				// Spawn at a random named location on the current map.
-				const auto& locList = s_isLC ? LCPedLocSpawns : LSPedLocSpawns;
+				const auto& locList = isLC ? LCPedLocSpawns : LSPedLocSpawns;
 				int picked = LessRandomInt("PedLocPick", 0, (int)locList.size() - 1);
 				for (int attempt = 0; attempt < 12; attempt++)
 				{
@@ -1026,7 +1020,13 @@ namespace PZSys
 						break;
 					}
 				}
-				Pos = Vector4(locList[picked].X, locList[picked].Y, locList[picked].Z, locList[picked].R);
+				// Hard guard: if chosen coord is on the wrong map for any reason,
+				// fall back to near-player spawn so peds never drown off-map.
+				const Vector4& chosen = locList[picked];
+				if ((chosen.X > 2800.0f) != isLC)
+					Pos = InAreaOf(PlayerPosi(), 30.0f, 60.0f);
+				else
+					Pos = Vector4(chosen.X, chosen.Y, chosen.Z, chosen.R);
 			}
 		}
 
