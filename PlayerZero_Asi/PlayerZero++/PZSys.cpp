@@ -1070,21 +1070,24 @@ namespace PZSys
 		else
 			Pos = VehPlace(PlayPos);
 
-		// Road-snap: only needed for LC/LPP where VehDrop coords can sit on
-		// rooftops or overpass geometry.  LS VehPlace() already returns
-		// road-valid positions; snapping there can land on parking nodes or
-		// give a wrong heading that breaks the AI's drive tasks.
+		// Road-snap: move spawn to nearest driveable road node so vehicles
+		// never land on rooftops, overpasses, or off-mesh geometry.
+		// Applied to both LC and LS.  For LC we also take the road heading
+		// so vehicles face traffic correctly on LPP geometry.  For LS we
+		// keep the VehPlace() heading because those coords are curated with
+		// the correct facing direction — overwriting it caused wrong-way
+		// drives and broken AI tasks.
 		{
 			Vector3 pCheck = PlayerPosi();
-			if (pCheck.x > 2800.0f)   // LC only
+			const bool snapLC = (pCheck.x > 2800.0f);
+			Vector3 roadPos; float roadHeading = Pos.R;
+			if (PATHFIND::GET_CLOSEST_VEHICLE_NODE_WITH_HEADING(
+				Pos.X, Pos.Y, Pos.Z, &roadPos, &roadHeading, 1, 3.0f, 0))
 			{
-				Vector3 roadPos; float roadHeading = Pos.R;
-				if (PATHFIND::GET_CLOSEST_VEHICLE_NODE_WITH_HEADING(
-					Pos.X, Pos.Y, Pos.Z, &roadPos, &roadHeading, 1, 3.0f, 0))
-				{
-					Pos.X = roadPos.x; Pos.Y = roadPos.y; Pos.Z = roadPos.z;
-					Pos.R = roadHeading;
-				}
+				Pos.X = roadPos.x; Pos.Y = roadPos.y; Pos.Z = roadPos.z;
+				if (snapLC)
+					Pos.R = roadHeading;   // LC: use road heading
+				// LS: keep original VehPlace() heading
 			}
 		}
 

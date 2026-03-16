@@ -67,6 +67,18 @@ Change Log
 ---- Fork Changes by idiotsandwich93 ----
 
 
+-- v46: LS Vehicle Road-Snap Restored (Position Only) --
+
+- Road-snap (GET_CLOSEST_VEHICLE_NODE_WITH_HEADING) is now applied in
+  both LC and LS to prevent vehicles spawning on rooftops, overpasses,
+  or other undriveable geometry.
+- For LC the road heading is also applied (unchanged from v39/v43).
+- For LS only the position is moved to the nearest road node; the
+  original VehPlace() heading is kept. This prevents the wrong-way
+  drives and broken AI tasks that occurred when the snap also
+  overwrote the LS heading.
+
+
 -- v45: Spawn Radius Reverted to Safe Distances --
 
 - Reverted near-player InAreaOf spawn radius from (50m, 100m) back to
