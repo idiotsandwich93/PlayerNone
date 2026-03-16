@@ -67,6 +67,19 @@ Change Log
 ---- Fork Changes by idiotsandwich93 ----
 
 
+-- v47: Road-Snap Restricted to Ground Vehicles Only --
+
+- Fixed a bug in v46 where road-snap ran on every vehicle type,
+  including aircraft (prefVeh 3/5/8/9, spawned 1200m up) and watercraft
+  (prefVeh 2/4). The snap was pulling aircraft spawn positions down to
+  the nearest road node, breaking aerial spawns.
+- Road-snap now only runs in the ground-vehicle branch (VehPlace path),
+  which covers LS and LC standard car/truck/bike spawns. Aircraft,
+  boats, Yankton, and Cayo paths are unaffected.
+- LC ground vehicles: road position + heading from nav node (unchanged).
+- LS ground vehicles: road position only, VehPlace() heading preserved.
+
+
 -- v46: LS Vehicle Road-Snap Restored (Position Only) --
 
 - Road-snap (GET_CLOSEST_VEHICLE_NODE_WITH_HEADING) is now applied in

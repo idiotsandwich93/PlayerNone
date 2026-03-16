@@ -1068,24 +1068,26 @@ namespace PZSys
 		else if (FileExists(ZeroCayo))
 			NearestToo(&Pos, CayoVhPoint, LastDropVeh, 20.0f);
 		else
+		{
+			// Ground vehicle on LS or LC map.
 			Pos = VehPlace(PlayPos);
 
-		// Road-snap: move spawn to nearest driveable road node so vehicles
-		// never land on rooftops, overpasses, or off-mesh geometry.
-		// Applied to both LC and LS.  For LC we also take the road heading
-		// so vehicles face traffic correctly on LPP geometry.  For LS we
-		// keep the VehPlace() heading because those coords are curated with
-		// the correct facing direction — overwriting it caused wrong-way
-		// drives and broken AI tasks.
-		{
+			// Road-snap: move spawn to nearest driveable road node so
+			// ground vehicles never land on rooftops or overpass geometry.
+			// NOT applied to aircraft (prefVeh 3/5/8/9) or watercraft
+			// (prefVeh 2/4) — those are handled by the branches above.
+			// For LC we also take the road heading so vehicles face traffic
+			// correctly on LPP geometry.  For LS we keep the VehPlace()
+			// heading — those coords are curated with the correct direction;
+			// overwriting caused wrong-way drives and broken AI tasks.
 			Vector3 pCheck = PlayerPosi();
-			const bool snapLC = (pCheck.x > 2800.0f);
+			const bool isLC = (pCheck.x > 2800.0f);
 			Vector3 roadPos; float roadHeading = Pos.R;
 			if (PATHFIND::GET_CLOSEST_VEHICLE_NODE_WITH_HEADING(
 				Pos.X, Pos.Y, Pos.Z, &roadPos, &roadHeading, 1, 3.0f, 0))
 			{
 				Pos.X = roadPos.x; Pos.Y = roadPos.y; Pos.Z = roadPos.z;
-				if (snapLC)
+				if (isLC)
 					Pos.R = roadHeading;   // LC: use road heading
 				// LS: keep original VehPlace() heading
 			}
