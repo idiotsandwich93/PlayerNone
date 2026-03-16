@@ -6158,13 +6158,18 @@ void PlayerZerosAI()
 	// correct named location for the current map on the next cycle.
 	{
 		static bool s_prevIsLC = false;
-		Vector3 pCheck = PlayerPosi();
-		const bool curIsLC = (pCheck.x > 2800.0f);
-		if (curIsLC != s_prevIsLC)
+		// Guard: skip if the player entity isn't loaded yet (coords == 0,0,0
+		// during loading screens would flip the flag and wrongly despawn peds).
+		if ((bool)ENTITY::DOES_ENTITY_EXIST(PLAYER::PLAYER_PED_ID()))
 		{
-			s_prevIsLC = curIsLC;
-			for (int i = 0; i < (int)PedList.size(); i++)
-				PedList[i].TimeOn = 0;
+			Vector3 pCheck = PlayerPosi();
+			const bool curIsLC = (pCheck.x > 2800.0f);
+			if (curIsLC != s_prevIsLC)
+			{
+				s_prevIsLC = curIsLC;
+				for (int i = 0; i < (int)PedList.size(); i++)
+					PedList[i].TimeOn = 0;
+			}
 		}
 	}
 

@@ -1108,11 +1108,29 @@ namespace PZSys
 			return NewVector3(CayoVhPoint[LessRandomInt("CayoLocRand", 0, (int)CayoVhPoint.size() - 1)]);
 		else
 		{
-			Vector3 V3P = PlayerPosi();
-			V3P.x *= -1;
-			V3P.y *= -1;
-			Vector4 VP = VehPlace(V3P);
-			return NewVector3(VP);
+			Vector3 pPos = PlayerPosi();
+			if (pPos.x > 2800.0f)
+			{
+				// LC (LPP): pick a random LC borough centre (SanLoocIndex 16-20)
+				// and return the nearest VehDrop point in that region.
+				// Do NOT negate coordinates here — negating an LC X (~5000) gives
+				// X~-5000 which selects an LS VehDrops array, sending drivers to
+				// the wrong map where they fail to navigate and go AFK.
+				int lcRegion = 16 + LessRandomInt("LCRandLoc", 0, 4);
+				Vector3 lcCenter = NewVector3(SanLoocIndex[lcRegion].X, SanLoocIndex[lcRegion].Y, SanLoocIndex[lcRegion].Z);
+				Vector4 VP = VehPlace(lcCenter);
+				return NewVector3(VP);
+			}
+			else
+			{
+				// LS: original behaviour — negate player position to select a
+				// VehDrops region on the opposite side of the map.
+				Vector3 V3P = pPos;
+				V3P.x *= -1;
+				V3P.y *= -1;
+				Vector4 VP = VehPlace(V3P);
+				return NewVector3(VP);
+			}
 		}
 	}
 	

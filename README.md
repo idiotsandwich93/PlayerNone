@@ -67,6 +67,24 @@ Change Log
 ---- Fork Changes by idiotsandwich93 ----
 
 
+-- v49: Fix LC Driver Navigation + Map-Transition Guard --
+
+- Fixed LC (LPP) driver navigation. RandomLocation() previously negated
+  the player's X/Y to find a distant destination (valid LS logic: player
+  at X=-500 gives V3P X=+500 which selects a different LS region).
+  In LC the player is at X~5000, so negation produced X~-5000 which
+  selected an LS VehDrops array. LC drivers were sent to LS coordinates,
+  could not pathfind there, and stopped driving / went AFK. Fix: LC path
+  picks a random SanLoocIndex entry from the five LC boroughs (16-20)
+  and calls VehPlace() with that centre so drivers always get a valid
+  LC-side destination. LS path is unchanged.
+- Added player-entity existence guard to the v48 map-transition cleanup
+  (PlayerZerosAI). If the player entity is not loaded (coords 0,0,0
+  during a loading screen or cutscene), the cleanup check is skipped.
+  Prevents a spurious LC->LS transition flip from incorrectly despawning
+  all peds when the engine briefly returns an invalid position.
+
+
 -- v48: Fix Map-Transition Ped Death Loop --
 
 - Root cause of random ped deaths: the v41 fix prevented NEW peds from
