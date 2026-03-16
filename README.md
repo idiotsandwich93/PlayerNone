@@ -67,6 +67,24 @@ Change Log
 ---- Fork Changes by idiotsandwich93 ----
 
 
+-- v48: Fix Map-Transition Ped Death Loop --
+
+- Root cause of random ped deaths: the v41 fix prevented NEW peds from
+  spawning at the wrong map's named locations, but peds already alive at
+  LC named-location coordinates (X>2800) were never cleaned up when the
+  player transitioned to LS. Those peds remained at LC world coordinates
+  which are open ocean in the LS world-space, causing them to drown and
+  respawn in a continuous loop.
+- Added map-transition detection in PlayerZerosAI(). A static bool
+  tracks whether the player was last seen in LC or LS. When the map
+  changes (curIsLC != prevIsLC), all peds have TimeOn set to 0, queuing
+  a clean despawn. ProcessPZ removes each ped normally and respawns it
+  at a correct named location for the new map on the next cycle.
+- No new static cache for map state — the static only records the
+  previous state to detect changes; the current state is always read
+  fresh from PlayerPosi() each tick.
+
+
 -- v47: Road-Snap Restricted to Ground Vehicles Only --
 
 - Fixed a bug in v46 where road-snap ran on every vehicle type,
