@@ -67,6 +67,24 @@ Change Log
 ---- Fork Changes by idiotsandwich93 ----
 
 
+-- v42: Near-Player Ped Cap Fix + LC Interior Business Entry --
+
+- Reduced near-player on-foot ped cap from <6 to <2 peds within 100m.
+  Previously up to 5 peds could spawn within 80m and then walk toward
+  the player, causing visible crowd clustering.
+- Increased near-player spawn radius from 30-60m to 50-100m so peds
+  start further away. Applied to LS/LC, Yankton, and Cayo branches.
+- LSRData.cpp LoadLocations() now captures the <InteriorID> field from
+  every location block and stores it in LSRLocation.interiorID. Previously
+  this field was always -1, meaning no ped ever entered a business interior.
+- LPP Init block now also calls LoadInteriors(Interiors_LPP.xml) so LC
+  interior properties (weapon restriction, etc.) are resolved correctly
+  for BurgerShot, Cluckin Bell, bars, and all other LC businesses.
+- MAX_ROUTE_DIST for shop routing increased from 250m to 400m. LC
+  businesses can be more spread out than LS, so the larger radius
+  ensures peds always find a valid Bar/Restaurant/GasStation destination.
+
+
 -- v40: XML Ped Spawn Rescan + Map Isolation Fix --
 
 - Replaced both LCPedLocSpawns and LSPedLocSpawns arrays with coordinates parsed directly
