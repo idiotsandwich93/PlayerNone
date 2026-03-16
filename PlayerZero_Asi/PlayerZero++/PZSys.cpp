@@ -921,7 +921,7 @@ namespace PZSys
 					DistanceTo(PedList[i].ThisPed, pPos) < 100.0f)
 					nearCount++;
 
-			if (nearCount < 2)
+			if (nearCount < 4)
 			{
 				Pos = InAreaOf(PlayerPosi(), 50.0f, 100.0f);
 				NearestToo(&Pos, YankSpPoint, LastDropPed, 10.0f);
@@ -955,7 +955,7 @@ namespace PZSys
 					DistanceTo(PedList[i].ThisPed, pPos) < 100.0f)
 					nearCount++;
 
-			if (nearCount < 2)
+			if (nearCount < 4)
 			{
 				Pos = InAreaOf(PlayerPosi(), 50.0f, 100.0f);
 				NearestToo(&Pos, CayoSpPoint, LastDropPed, 10.0f);
@@ -986,7 +986,7 @@ namespace PZSys
 			Vector3 pPos = PlayerPosi();
 			const bool isLC = (pPos.x > 2800.0f);
 
-			// Cap near-player spawns: only 2 on-foot peds allowed within 100m before
+			// Cap near-player spawns: only 4 on-foot peds allowed within 100m before
 			// switching to location-based spawns. Larger radius (50-100m) means new
 			// peds start further away and never immediately crowd the player.
 			int nearCount = 0;
@@ -999,7 +999,7 @@ namespace PZSys
 				}
 			}
 
-			if (nearCount < 2)
+			if (nearCount < 4)
 			{
 				Pos = InAreaOf(PlayerPosi(), 50.0f, 100.0f);
 			}
@@ -1081,15 +1081,21 @@ namespace PZSys
 		else
 			Pos = VehPlace(PlayPos);
 
-		// Snap to the nearest driveable road node so vehicles never
-		// land on rooftops, overpasses, or off-mesh geometry.
+		// Road-snap: only needed for LC/LPP where VehDrop coords can sit on
+		// rooftops or overpass geometry.  LS VehPlace() already returns
+		// road-valid positions; snapping there can land on parking nodes or
+		// give a wrong heading that breaks the AI's drive tasks.
 		{
-			Vector3 roadPos; float roadHeading = Pos.R;
-			if (PATHFIND::GET_CLOSEST_VEHICLE_NODE_WITH_HEADING(
-				Pos.X, Pos.Y, Pos.Z, &roadPos, &roadHeading, 1, 3.0f, 0))
+			Vector3 pCheck = PlayerPosi();
+			if (pCheck.x > 2800.0f)   // LC only
 			{
-				Pos.X = roadPos.x; Pos.Y = roadPos.y; Pos.Z = roadPos.z;
-				Pos.R = roadHeading;
+				Vector3 roadPos; float roadHeading = Pos.R;
+				if (PATHFIND::GET_CLOSEST_VEHICLE_NODE_WITH_HEADING(
+					Pos.X, Pos.Y, Pos.Z, &roadPos, &roadHeading, 1, 3.0f, 0))
+				{
+					Pos.X = roadPos.x; Pos.Y = roadPos.y; Pos.Z = roadPos.z;
+					Pos.R = roadHeading;
+				}
 			}
 		}
 
