@@ -67,6 +67,30 @@ Change Log
 ---- Fork Changes by idiotsandwich93 ----
 
 
+-- v45: Spawn Radius Reverted to Safe Distances --
+
+- Reverted near-player InAreaOf spawn radius from (50m, 100m) back to
+  (30m, 60m) across all map branches (LS/LC, Yankton, Cayo).
+  InAreaOf only offsets X/Y from the player position while keeping the
+  same Z value. At 100m the terrain can be a cliff, rooftop, bridge, or
+  open water, causing peds to spawn mid-air or in the ocean and die.
+  The 30-60m range keeps spawns close enough that ground level is
+  consistent with the player's Z.
+- Narrowed nearCount detection radius from 100m back to 80m to match
+  the 60m max spawn radius.
+- Near-player cap remains at 4 (as set in v43).
+
+
+-- v44: Remove Unsafe Pathfinder Call from Ped Spawning --
+
+- Removed GET_SAFE_COORD_FOR_PED call that was added post-v41.
+  This pathfinder call searched up to ~100m for any safe pedestrian
+  position and could silently move a validated spawn coordinate across
+  the X=2800 map boundary, bypassing all existing map guards and
+  sending peds into the wrong-map ocean. The fix restores exact v41
+  spawn finalization behavior.
+
+
 -- v43: Ped Cap Raised to 4, Road-Snap Restricted to LC --
 
 - Near-player ped cap raised from <2 to <4. Allows up to 3 on-foot peds

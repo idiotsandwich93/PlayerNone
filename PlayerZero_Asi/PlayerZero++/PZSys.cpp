@@ -918,12 +918,12 @@ namespace PZSys
 			Vector3 pPos = PlayerPosi();
 			for (int i = 0; i < (int)PedList.size(); i++)
 				if (!PedList[i].Driver && !PedList[i].Passenger &&
-					DistanceTo(PedList[i].ThisPed, pPos) < 100.0f)
+					DistanceTo(PedList[i].ThisPed, pPos) < 80.0f)
 					nearCount++;
 
 			if (nearCount < 4)
 			{
-				Pos = InAreaOf(PlayerPosi(), 50.0f, 100.0f);
+				Pos = InAreaOf(PlayerPosi(), 30.0f, 60.0f);
 				NearestToo(&Pos, YankSpPoint, LastDropPed, 10.0f);
 			}
 			else
@@ -940,7 +940,7 @@ namespace PZSys
 					Pos = PedPlace(rCenter);
 				else
 				{
-					Pos = InAreaOf(PlayerPosi(), 50.0f, 100.0f);
+					Pos = InAreaOf(PlayerPosi(), 30.0f, 60.0f);
 					NearestToo(&Pos, YankSpPoint, LastDropPed, 10.0f);
 				}
 			}
@@ -952,12 +952,12 @@ namespace PZSys
 			Vector3 pPos = PlayerPosi();
 			for (int i = 0; i < (int)PedList.size(); i++)
 				if (!PedList[i].Driver && !PedList[i].Passenger &&
-					DistanceTo(PedList[i].ThisPed, pPos) < 100.0f)
+					DistanceTo(PedList[i].ThisPed, pPos) < 80.0f)
 					nearCount++;
 
 			if (nearCount < 4)
 			{
-				Pos = InAreaOf(PlayerPosi(), 50.0f, 100.0f);
+				Pos = InAreaOf(PlayerPosi(), 30.0f, 60.0f);
 				NearestToo(&Pos, CayoSpPoint, LastDropPed, 10.0f);
 			}
 			else
@@ -973,7 +973,7 @@ namespace PZSys
 					Pos = PedPlace(rCenter);
 				else
 				{
-					Pos = InAreaOf(PlayerPosi(), 50.0f, 100.0f);
+					Pos = InAreaOf(PlayerPosi(), 30.0f, 60.0f);
 					NearestToo(&Pos, CayoSpPoint, LastDropPed, 10.0f);
 				}
 			}
@@ -993,7 +993,7 @@ namespace PZSys
 			for (int i = 0; i < (int)PedList.size(); i++)
 			{
 				if (!PedList[i].Driver && !PedList[i].Passenger &&
-					DistanceTo(PedList[i].ThisPed, pPos) < 100.0f)
+					DistanceTo(PedList[i].ThisPed, pPos) < 80.0f)
 				{
 					nearCount++;
 				}
@@ -1001,7 +1001,7 @@ namespace PZSys
 
 			if (nearCount < 4)
 			{
-				Pos = InAreaOf(PlayerPosi(), 50.0f, 100.0f);
+				Pos = InAreaOf(PlayerPosi(), 30.0f, 60.0f);
 			}
 			else
 			{
@@ -1026,21 +1026,10 @@ namespace PZSys
 				// fall back to near-player spawn so peds never drown off-map.
 				const Vector4& chosen = locList[picked];
 				if ((chosen.X > 2800.0f) != isLC)
-					Pos = InAreaOf(PlayerPosi(), 50.0f, 100.0f);
+					Pos = InAreaOf(PlayerPosi(), 30.0f, 60.0f);
 				else
 					Pos = Vector4(chosen.X, chosen.Y, chosen.Z, chosen.R);
 			}
-		}
-
-		// Snap to a valid pedestrian-safe coord.
-		// Flag 16 tells the pathfinder to prefer a sidewalk / pavement position,
-		// keeping spawned peds off the centre of the road.
-		Vector3 safeOut; safeOut.x = Pos.X; safeOut.y = Pos.Y; safeOut.z = Pos.Z;
-		if (PATHFIND::GET_SAFE_COORD_FOR_PED(Pos.X, Pos.Y, Pos.Z, true, &safeOut, 16))
-		{
-			Pos.X = safeOut.x;
-			Pos.Y = safeOut.y;
-			Pos.Z = safeOut.z;
 		}
 
 		LastDropPed.push_back(NewVector3(Pos.X, Pos.Y, Pos.Z));
