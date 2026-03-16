@@ -1464,18 +1464,23 @@ bool HasASeat(Vehicle vic)
 Vector4 FindingShops(Ped peddy)
 {
 	Vector3 PedPos = ENTITY::GET_ENTITY_COORDS(peddy, true);
-	float fDis = 5000.0;
-	int This = 0;
+
+	// Prefer shops within 3 km so LC peds don't get routed to LS destinations.
+	// Falls back to absolute nearest if nothing qualifies (should not happen with
+	// the LC shop entries in ShopsNTings).
+	float fDisNear = 3000.0f * 3000.0f;  // squared
+	float fDisAbs  = 1e12f;
+	int iNear = -1, iAbs = 0;
+
 	for (int i = 0; i < (int)ShopsNTings.size(); i++)
 	{
-		float fit = DistanceTo(ShopsNTings[i], PedPos);
-		if (fit < fDis)
-		{
-			fDis = fit;
-			This = i;
-		}
+		float dx = ShopsNTings[i].X - PedPos.x;
+		float dy = ShopsNTings[i].Y - PedPos.y;
+		float dSq = dx*dx + dy*dy;
+		if (dSq < fDisAbs) { fDisAbs = dSq; iAbs = i; }
+		if (dSq < fDisNear) { fDisNear = dSq; iNear = i; }
 	}
-	return ShopsNTings[This];
+	return ShopsNTings[iNear >= 0 ? iNear : iAbs];
 }
 int YourGunNum()
 {
@@ -2227,29 +2232,48 @@ void PickNextAction(PlayerBrain* brain)
 			brain->ShopTimer      = InGameTime() + RandomInt(20000, 40000);
 			brain->InteriorEntryID = dest->interiorID; // -1 if no interior
 		}
+		else if (!PlayerHotspots.empty())
+		{
+			// No LSR location within range — pick a hotspot near this ped so LC peds
+			// don't get sent to LS destinations and vice versa.
+			std::vector<int> nearby;
+			float bestDist = 1e12f;
+			int   bestIdx  = 0;
+			for (int k = 0; k < (int)PlayerHotspots.size(); k++) {
+				float dx = PlayerHotspots[k].x - pedPos.x;
+				float dy = PlayerHotspots[k].y - pedPos.y;
+				float dSq = dx*dx + dy*dy;
+				if (dSq < 3000.0f * 3000.0f) nearby.push_back(k);
+				if (dSq < bestDist) { bestDist = dSq; bestIdx = k; }
+			}
+			int iSpot = nearby.empty() ? bestIdx : nearby[RandomInt(0, (int)nearby.size() - 1)];
+			WalkHere(peddy, PlayerHotspots[iSpot]);
+			brain->ShopTimer = InGameTime() + RandomInt(20000, 40000);
+		}
 		else
 		{
-			// No LSR location within range — fall back to static hotspot or wander.
-			if (!PlayerHotspots.empty())
-			{
-				int iSpot = RandomInt(0, (int)PlayerHotspots.size() - 1);
-				WalkHere(peddy, PlayerHotspots[iSpot]);
-				brain->ShopTimer = InGameTime() + RandomInt(20000, 40000);
-			}
-			else
-			{
-				AI::CLEAR_PED_TASKS(peddy);
-				AI::TASK_WANDER_STANDARD(peddy, 10.0f, 10);
-				PED::SET_PED_KEEP_TASK(peddy, true);
-				PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(peddy, false);
-				brain->ScenarioTimer = InGameTime() + RandomInt(20000, 45000);
-			}
+			AI::CLEAR_PED_TASKS(peddy);
+			AI::TASK_WANDER_STANDARD(peddy, 10.0f, 10);
+			PED::SET_PED_KEEP_TASK(peddy, true);
+			PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(peddy, false);
+			brain->ScenarioTimer = InGameTime() + RandomInt(20000, 45000);
 		}
 	}
 	else if (!PlayerHotspots.empty())
 	{
-		// Standalone mode: use static hotspot list
-		int iSpot = RandomInt(0, (int)PlayerHotspots.size() - 1);
+		// Standalone mode: nearest hotspot within 3km, fallback to absolute nearest.
+		Vector3 hp = ENTITY::GET_ENTITY_COORDS(peddy, true);
+		std::vector<int> nearby;
+		float bestDist = 1e12f;
+		int   bestIdx  = 0;
+		for (int k = 0; k < (int)PlayerHotspots.size(); k++) {
+			float dx = PlayerHotspots[k].x - hp.x;
+			float dy = PlayerHotspots[k].y - hp.y;
+			float dSq = dx*dx + dy*dy;
+			if (dSq < 3000.0f * 3000.0f) nearby.push_back(k);
+			if (dSq < bestDist) { bestDist = dSq; bestIdx = k; }
+		}
+		int iSpot = nearby.empty() ? bestIdx : nearby[RandomInt(0, (int)nearby.size() - 1)];
 		WalkHere(peddy, PlayerHotspots[iSpot]);
 		brain->ShopTimer = InGameTime() + RandomInt(20000, 40000);
 	}
@@ -2326,6 +2350,7 @@ void RunHere(Ped Peddy, Vector4 pos)
 }
 // Real GTA V hotspot locations for FiveM-like driving behavior
 const std::vector<Vector3> PlayerHotspots = {
+	// Los Santos / Blaine County
 	NewVector3(-1391.76f, -590.92f,  30.00f),  // LSIA Airport
 	NewVector3( 414.15f, -1020.33f,  29.35f),  // Legion Square
 	NewVector3(-710.40f,  -939.45f,  19.22f),  // Del Perro Pier
@@ -2346,6 +2371,22 @@ const std::vector<Vector3> PlayerHotspots = {
 	NewVector3( -552.49f,  -192.32f, 37.63f),  // Maze Bank Arena
 	NewVector3(   26.07f,  -951.75f, 28.57f),  // Maze Bank Tower
 	NewVector3(-1299.30f, -1128.90f,  6.99f),  // Chumash Beach
+	// Liberty City Preservation Project
+	NewVector3(5350.0f, -2400.0f, 15.0f),  // Algonquin – Star Junction
+	NewVector3(5150.0f, -2200.0f, 18.0f),  // Algonquin – North Holland
+	NewVector3(5650.0f, -2750.0f, 10.0f),  // Algonquin – Purgatory
+	NewVector3(5650.0f, -3300.0f, 12.0f),  // Broker – Hove Beach
+	NewVector3(5450.0f, -3450.0f, 10.0f),  // Broker – Firefly Projects
+	NewVector3(5900.0f, -3300.0f, 12.0f),  // Broker – Beachgate
+	NewVector3(6350.0f, -2600.0f, 18.0f),  // Dukes – Willis
+	NewVector3(6150.0f, -2300.0f, 15.0f),  // Dukes – Steinway
+	NewVector3(6700.0f, -2450.0f, 20.0f),  // Dukes – Meadow Hills
+	NewVector3(5450.0f, -1500.0f, 15.0f),  // Bohan – Industrial
+	NewVector3(5700.0f, -1600.0f, 15.0f),  // Bohan – Fortside
+	NewVector3(5600.0f, -1300.0f, 20.0f),  // Bohan – Northern Gardens
+	NewVector3(4500.0f, -2500.0f, 15.0f),  // Alderney – Alderney City
+	NewVector3(4650.0f, -2350.0f, 18.0f),  // Alderney – Acter
+	NewVector3(4250.0f, -1950.0f, 22.0f),  // Alderney – Westdyke
 };
 
 // lawAbiding: true = friendly civilian (obeys traffic signals, modest speed)
@@ -2359,7 +2400,20 @@ void DriveToHotspot(Ped peddy, Vehicle vic, bool lawAbiding = false)
 	LoggerLight("DriveToHotspot");
 	if (!(bool)PED::IS_PED_IN_ANY_VEHICLE(peddy, 0)) return;
 	if (peddy != VEHICLE::GET_PED_IN_VEHICLE_SEAT(PED::GET_VEHICLE_PED_IS_USING(peddy), -1)) return;
-	int iSpot = LessRandomInt("Hotspot", 0, (int)PlayerHotspots.size() - 1);
+	// Pick from hotspots within 3km of the vehicle so LC drivers stay in LC
+	// and LS drivers stay in LS. Falls back to absolute nearest if none qualify.
+	Vector3 vPos = ENTITY::GET_ENTITY_COORDS(vic, true);
+	std::vector<int> nearby;
+	float bestDist = 1e12f;
+	int   bestIdx  = 0;
+	for (int k = 0; k < (int)PlayerHotspots.size(); k++) {
+		float dx = PlayerHotspots[k].x - vPos.x;
+		float dy = PlayerHotspots[k].y - vPos.y;
+		float dSq = dx*dx + dy*dy;
+		if (dSq < 3000.0f * 3000.0f) nearby.push_back(k);
+		if (dSq < bestDist) { bestDist = dSq; bestIdx = k; }
+	}
+	int iSpot = nearby.empty() ? bestIdx : nearby[LessRandomInt("Hotspot", 0, (int)nearby.size() - 1)];
 	Vector3 dest = PlayerHotspots[iSpot];
 	int iDriveStyle;
 	float fSpeed;
@@ -4420,7 +4474,15 @@ void InABuilding()
 	int PZSetMinSession = (MySettings.MinSession * 60) * 1000;
 	int PZSetMaxSession = (MySettings.MaxSession * 60) * 1000;
 
-	int iMit = LessRandomInt("InABuilding", 0, (int)AFKPlayers.size() - 1);
+	// Pick from the correct map's apartment range.
+	// LC (LCPP) residences begin at kLCApartmentStart; LS entries are before that.
+	Vector3 pp = ENTITY::GET_ENTITY_COORDS(PLAYER::PLAYER_PED_ID(), true);
+	bool inLC  = (pp.x > 2500.0f);
+	int rangeStart = inLC ? kLCApartmentStart : 0;
+	int rangeEnd   = inLC ? (int)AFKPlayers.size() - 1
+	                      : kLCApartmentStart - 1;
+
+	int iMit = LessRandomInt("InABuilding", rangeStart, rangeEnd);
 	std::string sName = SillyNameList();
 	if (AddHackAttacks)
 	{

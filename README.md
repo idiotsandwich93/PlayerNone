@@ -67,6 +67,101 @@ Change Log
 ---- Fork Changes by idiotsandwich93 ----
 
 
+-- v40: XML Ped Spawn Rescan + Map Isolation Fix --
+
+- Replaced both LCPedLocSpawns and LSPedLocSpawns arrays with coordinates parsed directly
+  from the LSR XML files instead of the previous hand-estimated placeholders.
+- LCPedLocSpawns now contains 258 real entries sourced from Locations_LPP.xml
+  PossiblePedSpawns blocks where StateID is Liberty or Alderney. Covers all five boroughs:
+  Algonquin, Broker, Dukes, Bohan, and Alderney.
+- LSPedLocSpawns now contains 307 real entries sourced from Locations.xml PossiblePedSpawns.
+  Covers Los Santos city, Blaine County, Sandy Shores, Paleto Bay, and surrounding areas.
+- Stray Acter Police Station entries with clearly wrong coordinates (X ≈ -990) are excluded
+  from the LC set by the X > 2800 coordinate filter.
+- s_isLC map detection threshold raised from 2500 to 2800 to avoid misidentifying far-east
+  Blaine County positions as Liberty City, eliminating wrong-map ped spawning.
+
+
+-- v39: Vehicle Road-Snap on Spawn --
+
+- Added GET_CLOSEST_VEHICLE_NODE_WITH_HEADING call in FindVehSpPoint() immediately after
+  the VehDrop position is selected. Snaps X/Y/Z to the nearest navmesh road node and
+  replaces the stored heading with the actual road direction.
+- Fixes vehicles spawning on rooftops, overpasses, and off-mesh geometry — particularly in
+  Alderney where several VehDrops21 entries sit on elevated expressway geometry.
+- Falls back to the raw VehDrop coordinate if no road node is found within range.
+- Applies to all maps: LS, LC (all five boroughs), Yankton, and Cayo Perico.
+
+
+-- v38: Named Location Foot-Spawn System --
+
+- Distant on-foot player spawns (beyond the 6-ped near-player cap) now pick from named
+  real-world locations instead of a generic region-center-based PedPlace() call.
+- Added LCPedLocSpawns array — Liberty City named ped spawn coordinates covering all five
+  boroughs sourced from Locations_LPP.xml PossiblePedSpawns.
+- Added LSPedLocSpawns array — Los Santos named ped spawn coordinates sourced from
+  Locations.xml PossiblePedSpawns.
+- FindPedSpPoint() distant-spawn else-branch replaced: randomly selects from the appropriate
+  map's array (LCPedLocSpawns when s_isLC, LSPedLocSpawns otherwise), tries up to 12
+  candidates to find one with fewer than 3 nearby on-foot peds, then spawns directly at
+  that location's coordinates including heading.
+- Near-player spawns (within 80m, capped at 6) are unchanged and still use InAreaOf().
+
+
+-- v37: Liberty City Vehicle Spawn Coordinates --
+
+- Replaced all five Liberty City vehicle spawn arrays (VehDrops17–21) with real road
+  positions extracted from Locations_LPP.xml PossibleVehicleSpawns.
+- Previous arrays contained round-number estimated coordinates that placed vehicles on
+  building rooftops, in parks, and in water — especially in Alderney.
+- VehDrops17 (Algonquin): 35 entries on Algonquin road network.
+- VehDrops18 (Broker): 28 entries covering Broker/southern LC roads.
+- VehDrops19 (Dukes): 40 entries on the Dukes/Queens road network.
+- VehDrops20 (Bohan): 35 entries covering the Bohan/Bronx area.
+- VehDrops21 (Alderney): 37 entries on Alderney/New Jersey roads.
+- All coordinates carry accurate Z elevation and heading values from the XML.
+
+
+-- v36: LC Ped and Vehicle Spawn Region Routing --
+
+- Extended SanLoocIndex with five Liberty City region centers (indices 16–20): Algonquin,
+  Broker, Dukes, Bohan, and Alderney.
+- VehPlace() and PedPlace() dispatch chains extended to cover indices 16–21 (VehDrops17–21
+  and PedDrops17–21) so LC ped and driver spawns route to the correct borough instead of
+  always falling through to the LS arrays.
+- Added LC spawn arrays PedDrops17–21 with ped-safe coordinates for each borough.
+- North Yankton and Cayo Perico region centers added at indices 21–22.
+
+
+-- v35: Map-Aware Shop Routing --
+
+- GetNearestLocationWithInterior() now filters LSR shop locations to within 3 km of the
+  requesting ped before selecting the nearest, so LC peds are never routed to LS shops
+  and LS peds are never routed to LC shops.
+- Falls back to the absolute nearest location if no shop qualifies within the distance cap
+  (prevents null returns in sparse areas).
+
+
+-- v34: Map-Aware Apartment Routing --
+
+- AFKPlayers apartment list split into an LS range and an LC range using kLCApartmentStart
+  index. InABuilding() selects from the correct range based on whether the player is in
+  LC (X > 2500) or LS, so idle peds park in apartments on the same map as the player.
+
+
+-- v33: LC-Aware Hotspot Routing --
+
+- PlayerHotspots extended with fifteen Liberty City hotspot positions covering all five
+  boroughs: Star Junction and North Holland (Algonquin), Purgatory (Algonquin south),
+  Hove Beach and Firefly Projects (Broker), Beachgate (Broker east), Willis and Steinway
+  (Dukes), Meadow Hills (Dukes east), Industrial and Fortside (Bohan), Northern Gardens
+  (Bohan north), and Alderney City, Acter, and Westdyke (Alderney).
+- Ped wander targets, driver destination hotspots, and scenario roaming all filter to
+  hotspots within 3 km of the acting ped or vehicle before selecting randomly, ensuring
+  LC peds stay in Liberty City and LS peds stay in San Andreas during normal activity.
+- Falls back to absolute nearest hotspot if none qualify within the distance cap.
+
+
 -- v32: Liberty City Outfit Classification --
 
 - Added Liberty City gang IDs to GetGangCloths() style buckets so LC freemode peds wear

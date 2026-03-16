@@ -722,6 +722,15 @@ namespace PZSys
 		Vector4(1622.083f, 4018.104f, 37.64009f, 0.0f),
 		Vector4(-1027.057f, 5541.436f, 20.38375f, 0.0f),
 		Vector4(1272.17f, 6244.464f, 115.8106f, 0.0f),
+		// Liberty City Preservation Project regions (indices 16-20)
+		Vector4(5350.0f, -2400.0f, 15.0f, 0.0f),   // Algonquin (Manhattan)
+		Vector4(5650.0f, -3300.0f, 15.0f, 0.0f),   // Broker (Brooklyn)
+		Vector4(6350.0f, -2650.0f, 18.0f, 0.0f),   // Dukes (Queens)
+		Vector4(5450.0f, -1550.0f, 18.0f, 0.0f),   // Bohan (Bronx)
+		Vector4(4600.0f, -2600.0f, 15.0f, 0.0f),   // Alderney (New Jersey)
+		// Alternate map regions (indices 21-22)
+		Vector4(3300.0f, -4750.0f, 112.0f, 0.0f),  // North Yankton (index 21)
+		Vector4(5000.0f, -5150.0f,  85.0f, 0.0f),  // Cayo Perico   (index 22)
 	};
 	static std::vector<Vector3> LastDropVeh = {};
 	static std::vector<Vector3> LastDropPed = {};
@@ -817,8 +826,18 @@ namespace PZSys
 			NearestToo(&Location, VehDrops14, LastDropVeh, 20.0f);
 		else if (List == 14)
 			NearestToo(&Location, VehDrops15, LastDropVeh, 20.0f);
-		else
+		else if (List == 15)
 			NearestToo(&Location, VehDrops16, LastDropVeh, 20.0f);
+		else if (List == 16)
+			NearestToo(&Location, VehDrops17, LastDropVeh, 20.0f);
+		else if (List == 17)
+			NearestToo(&Location, VehDrops18, LastDropVeh, 20.0f);
+		else if (List == 18)
+			NearestToo(&Location, VehDrops19, LastDropVeh, 20.0f);
+		else if (List == 19)
+			NearestToo(&Location, VehDrops20, LastDropVeh, 20.0f);
+		else
+			NearestToo(&Location, VehDrops21, LastDropVeh, 20.0f);
 
 		return Location;
 	}
@@ -868,8 +887,22 @@ namespace PZSys
 			NearestToo(&Location, PedDrops14, LastDropPed, 10.0f);
 		else if (List == 14)
 			NearestToo(&Location, PedDrops15, LastDropPed, 10.0f);
-		else
+		else if (List == 15)
 			NearestToo(&Location, PedDrops16, LastDropPed, 10.0f);
+		else if (List == 16)
+			NearestToo(&Location, PedDrops17, LastDropPed, 10.0f);
+		else if (List == 17)
+			NearestToo(&Location, PedDrops18, LastDropPed, 10.0f);
+		else if (List == 18)
+			NearestToo(&Location, PedDrops19, LastDropPed, 10.0f);
+		else if (List == 19)
+			NearestToo(&Location, PedDrops20, LastDropPed, 10.0f);
+		else if (List == 20)
+			NearestToo(&Location, PedDrops21, LastDropPed, 10.0f);
+		else if (List == 21)
+			NearestToo(&Location, YankSpPoint, LastDropPed, 10.0f);  // North Yankton
+		else
+			NearestToo(&Location, CayoSpPoint, LastDropPed, 10.0f);  // Cayo Perico
 
 		return Location;
 	}
@@ -879,21 +912,88 @@ namespace PZSys
 
 		if (FileExists(ZeroYank))
 		{
-			Pos = InAreaOf(PlayerPosi(), 30.0f, 60.0f);
-			NearestToo(&Pos, YankSpPoint, LastDropPed, 10.0f);
+			// Same near-player cap + distant group logic as LS/LC.
+			// regionMin/Max both 21 so all distant spawns stay in Yankton.
+			int nearCount = 0;
+			Vector3 pPos = PlayerPosi();
+			for (int i = 0; i < (int)PedList.size(); i++)
+				if (!PedList[i].Driver && !PedList[i].Passenger &&
+					DistanceTo(PedList[i].ThisPed, pPos) < 80.0f)
+					nearCount++;
+
+			if (nearCount < 6)
+			{
+				Pos = InAreaOf(PlayerPosi(), 30.0f, 60.0f);
+				NearestToo(&Pos, YankSpPoint, LastDropPed, 10.0f);
+			}
+			else
+			{
+				const float regionRadius = 400.0f;
+				int regionIdx = 21;
+				Vector3 rCenter = NewVector3(SanLoocIndex[21].X, SanLoocIndex[21].Y, SanLoocIndex[21].Z);
+				int regionCount = 0;
+				for (int j = 0; j < (int)PedList.size(); j++)
+					if (!PedList[j].Driver && !PedList[j].Passenger &&
+						DistanceTo(PedList[j].ThisPed, rCenter) < regionRadius)
+						regionCount++;
+				if (regionCount < 3)
+					Pos = PedPlace(rCenter);
+				else
+				{
+					Pos = InAreaOf(PlayerPosi(), 30.0f, 60.0f);
+					NearestToo(&Pos, YankSpPoint, LastDropPed, 10.0f);
+				}
+			}
 		}
 		else if (FileExists(ZeroCayo))
 		{
-			Pos = InAreaOf(PlayerPosi(), 30.0f, 60.0f);
-			NearestToo(&Pos, CayoSpPoint, LastDropPed, 10.0f);
+			// Same logic, region 22 = Cayo Perico.
+			int nearCount = 0;
+			Vector3 pPos = PlayerPosi();
+			for (int i = 0; i < (int)PedList.size(); i++)
+				if (!PedList[i].Driver && !PedList[i].Passenger &&
+					DistanceTo(PedList[i].ThisPed, pPos) < 80.0f)
+					nearCount++;
+
+			if (nearCount < 6)
+			{
+				Pos = InAreaOf(PlayerPosi(), 30.0f, 60.0f);
+				NearestToo(&Pos, CayoSpPoint, LastDropPed, 10.0f);
+			}
+			else
+			{
+				const float regionRadius = 400.0f;
+				Vector3 rCenter = NewVector3(SanLoocIndex[22].X, SanLoocIndex[22].Y, SanLoocIndex[22].Z);
+				int regionCount = 0;
+				for (int j = 0; j < (int)PedList.size(); j++)
+					if (!PedList[j].Driver && !PedList[j].Passenger &&
+						DistanceTo(PedList[j].ThisPed, rCenter) < regionRadius)
+						regionCount++;
+				if (regionCount < 3)
+					Pos = PedPlace(rCenter);
+				else
+				{
+					Pos = InAreaOf(PlayerPosi(), 30.0f, 60.0f);
+					NearestToo(&Pos, CayoSpPoint, LastDropPed, 10.0f);
+				}
+			}
 		}
 		else
 		{
-			// Cap near-player spawns at 5 on-foot peds within 80m.
-			// This keeps the local area feeling alive without overwhelming the player,
-			// and scales automatically regardless of the MaxPlayers setting.
-			int nearCount = 0;
+			// Re-detect active map every 15 seconds.
+			// LC (LCPP) occupies X > 2800; LS occupies X <= 2800.
+			static bool  s_isLC         = false;
+			static DWORD s_lastMapCheck = 0;
 			Vector3 pPos = PlayerPosi();
+			DWORD nowMs = GetTickCount();
+			if (nowMs - s_lastMapCheck > 15000 && (pPos.x != 0.0f || pPos.y != 0.0f))
+			{
+				s_isLC         = (pPos.x > 2800.0f);
+				s_lastMapCheck = nowMs;
+			}
+
+			// Cap near-player spawns at 6 on-foot peds within 80m.
+			int nearCount = 0;
 			for (int i = 0; i < (int)PedList.size(); i++)
 			{
 				if (!PedList[i].Driver && !PedList[i].Passenger &&
@@ -902,15 +1002,31 @@ namespace PZSys
 					nearCount++;
 				}
 			}
-			if (nearCount < 5)
+
+			if (nearCount < 6)
 			{
 				Pos = InAreaOf(PlayerPosi(), 30.0f, 60.0f);
 			}
 			else
 			{
-				int regionIdx = RandomInt(0, (int)SanLoocIndex.size() - 1);
-				Vector3 RegionCenter = NewVector3(SanLoocIndex[regionIdx].X, SanLoocIndex[regionIdx].Y, SanLoocIndex[regionIdx].Z);
-				Pos = PedPlace(RegionCenter);
+				// Spawn at a random named location on the current map.
+				const auto& locList = s_isLC ? LCPedLocSpawns : LSPedLocSpawns;
+				int picked = LessRandomInt("PedLocPick", 0, (int)locList.size() - 1);
+				for (int attempt = 0; attempt < 12; attempt++)
+				{
+					int candidate = LessRandomInt("PedLocPick", 0, (int)locList.size() - 1);
+					Vector3 cPos = NewVector3(locList[candidate].X, locList[candidate].Y, locList[candidate].Z);
+					int nearby = 0;
+					for (auto& p : PedList)
+						if (!p.Driver && !p.Passenger && DistanceTo(p.ThisPed, cPos) < 80.0f)
+							nearby++;
+					if (nearby < 3)
+					{
+						picked = candidate;
+						break;
+					}
+				}
+				Pos = Vector4(locList[picked].X, locList[picked].Y, locList[picked].Z, locList[picked].R);
 			}
 		}
 
@@ -962,6 +1078,18 @@ namespace PZSys
 			NearestToo(&Pos, CayoVhPoint, LastDropVeh, 20.0f);
 		else
 			Pos = VehPlace(PlayPos);
+
+		// Snap to the nearest driveable road node so vehicles never
+		// land on rooftops, overpasses, or off-mesh geometry.
+		{
+			Vector3 roadPos; float roadHeading = Pos.R;
+			if (PATHFIND::GET_CLOSEST_VEHICLE_NODE_WITH_HEADING(
+				Pos.X, Pos.Y, Pos.Z, &roadPos, &roadHeading, 1, 3.0f, 0))
+			{
+				Pos.X = roadPos.x; Pos.Y = roadPos.y; Pos.Z = roadPos.z;
+				Pos.R = roadHeading;
+			}
+		}
 
 		LastDropVeh.push_back(NewVector3(Pos.X, Pos.Y, Pos.Z));
 		if (LastDropVeh.size() > 15)
