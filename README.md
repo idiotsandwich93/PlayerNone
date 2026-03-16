@@ -67,6 +67,19 @@ Change Log
 ---- Fork Changes by idiotsandwich93 ----
 
 
+-- v43: Ped Cap Raised to 4, Road-Snap Restricted to LC --
+
+- Near-player ped cap raised from <2 to <4. Allows up to 3 on-foot peds
+  within 100m before switching to location-based spawns across all maps.
+- Vehicle road-snap (GET_CLOSEST_VEHICLE_NODE_WITH_HEADING) is now only
+  applied when the player is in Liberty City (X > 2800). LS vehicles
+  from VehPlace() are already on valid road positions; running the snap
+  there was landing spawns on parking nodes and giving wrong headings,
+  causing LS drivers to crash into traffic, drive on sidewalks, and lose
+  their drive task entirely. LC retains the snap as LPP VehDrop
+  coordinates can include rooftops and overpass geometry.
+
+
 -- v42: Near-Player Ped Cap Fix + LC Interior Business Entry --
 
 - Reduced near-player on-foot ped cap from <6 to <2 peds within 100m.
