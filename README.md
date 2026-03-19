@@ -67,6 +67,19 @@ Change Log
 ---- Fork Changes by idiotsandwich93 ----
 
 
+-- v55: Transit — Fix ped not boarding at station entrance --
+
+- Moved transit Phase 1 (proximity/hide) and Phase 2 (ride timer/teleport)
+  checks to the top level of ProcessPZ, before the follower/friendly/driver
+  chain. Previously those checks were buried inside the friendly/driver branch
+  and never reached when any outer condition didn't match, leaving peds
+  standing at the entrance indefinitely.
+- Added alpha-restore guard: while a ped is hidden on the subway
+  (OnTransit && TransitTimer > 0), the per-tick alpha reset to 255 is
+  skipped so it cannot fight SET_ENTITY_VISIBLE.
+- Removed duplicate transit checks from the old buried location.
+
+
 -- v54: Transit System — Station Entry/Exit --
 
 - Peds now visibly walk to the station entrance before boarding.

@@ -4911,8 +4911,9 @@ void ProcessPZ(PlayerBrain* brain)
 							ENTITY::SET_ENTITY_ALPHA(brain->ThisVeh, 120, false);
 					}
 				}
-				else
+				else if (!brain->OnTransit || brain->TransitTimer == 0)
 				{
+					// Only restore alpha when ped is not hidden on the subway.
 					if (ENTITY::GET_ENTITY_ALPHA(brain->ThisPed) != 255)
 						ENTITY::SET_ENTITY_ALPHA(brain->ThisPed, 255, false);
 
@@ -4927,6 +4928,41 @@ void ProcessPZ(PlayerBrain* brain)
 				{
 					GetOutVehicle(PlayZero);
 					PedCleaning(brain, PZTranslate[29], true);
+				}
+				// Transit checks run before all other AI so no nested condition can block them.
+				else if (brain->OnTransit && brain->TransitTimer == 0)
+				{
+					// Phase 1: ped walking to station entrance — hide when close enough.
+					bool inLCT = (PedPos.x > 2800.0f);
+					const auto& stationsT = inLCT ? LCSubwayStations : LSSubwayStations;
+					int depIdx = brain->TransitStation;
+					if (depIdx >= 0 && depIdx < (int)stationsT.size())
+					{
+						float dx = stationsT[depIdx].X - PedPos.x;
+						float dy = stationsT[depIdx].Y - PedPos.y;
+						if (dx * dx + dy * dy < 15.0f * 15.0f)
+						{
+							ENTITY::SET_ENTITY_VISIBLE(PlayZero, false, false);
+							TASK::CLEAR_PED_TASKS(PlayZero);
+							brain->TransitTimer = GameTime + RandomInt(45000, 120000);
+							brain->FindPlayer   = brain->TransitTimer + 5000;
+						}
+					}
+				}
+				else if (brain->OnTransit && brain->TransitTimer > 0 && GameTime > brain->TransitTimer)
+				{
+					// Phase 2: ride complete — teleport to a random station and show ped.
+					bool inLCT = (PedPos.x > 2800.0f);
+					const auto& stationsT = inLCT ? LCSubwayStations : LSSubwayStations;
+					int destIdx = LessRandomInt("TransitDest", 0, (int)stationsT.size() - 1);
+					MoveEntity(PlayZero, NewVector3(stationsT[destIdx].X, stationsT[destIdx].Y, stationsT[destIdx].Z));
+					ENTITY::SET_ENTITY_VISIBLE(PlayZero, true, false);
+					PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(PlayZero, false);
+					brain->OnTransit      = false;
+					brain->TransitTimer   = 0;
+					brain->TransitStation = -1;
+					brain->FindPlayer     = GameTime + RandomInt(20000, 40000);
+					PickNextAction(brain);
 				}
 				else if (brain->IsSpecialPed)
 				{
@@ -5556,44 +5592,6 @@ void ProcessPZ(PlayerBrain* brain)
 									brain->FindPlayer = GameTime + RandomInt(15000, 40000);
 									PickNextAction(brain);
 								}
-							}
-							else if (brain->OnTransit && brain->TransitTimer == 0)
-							{
-								// Phase 1: ped walking to station entrance.
-								// When close enough, hide them and start the ride timer.
-								Vector3 pedPosT = ENTITY::GET_ENTITY_COORDS(PlayZero, true);
-								bool inLCT = (pedPosT.x > 2800.0f);
-								const auto& stationsT = inLCT ? LCSubwayStations : LSSubwayStations;
-								int depIdx = brain->TransitStation;
-								if (depIdx >= 0 && depIdx < (int)stationsT.size())
-								{
-									float dx = stationsT[depIdx].X - pedPosT.x;
-									float dy = stationsT[depIdx].Y - pedPosT.y;
-									if (dx * dx + dy * dy < 15.0f * 15.0f)
-									{
-										// Ped reached station entrance — board the train.
-										ENTITY::SET_ENTITY_VISIBLE(PlayZero, false, false);
-										TASK::CLEAR_PED_TASKS(PlayZero);
-										brain->TransitTimer = GameTime + RandomInt(45000, 120000);
-										brain->FindPlayer   = brain->TransitTimer + 5000;
-									}
-								}
-							}
-							else if (brain->OnTransit && brain->TransitTimer > 0 && GameTime > brain->TransitTimer)
-							{
-								// Phase 2: ride complete — teleport to a random station and show ped.
-								Vector3 pedPosT = ENTITY::GET_ENTITY_COORDS(PlayZero, true);
-								bool inLCT = (pedPosT.x > 2800.0f);
-								const auto& stationsT = inLCT ? LCSubwayStations : LSSubwayStations;
-								int destIdx = LessRandomInt("TransitDest", 0, (int)stationsT.size() - 1);
-								MoveEntity(PlayZero, NewVector3(stationsT[destIdx].X, stationsT[destIdx].Y, stationsT[destIdx].Z));
-								ENTITY::SET_ENTITY_VISIBLE(PlayZero, true, false);
-								PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(PlayZero, false);
-								brain->OnTransit      = false;
-								brain->TransitTimer   = 0;
-								brain->TransitStation = -1;
-								brain->FindPlayer     = GameTime + RandomInt(20000, 40000);
-								PickNextAction(brain);
 							}
 							else if (brain->ShopTimer > 0 && GameTime > brain->ShopTimer)
 							{
