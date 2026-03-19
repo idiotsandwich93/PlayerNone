@@ -1,0 +1,16 @@
+# Build output
+*.asi
+*.obj
+*.iobj
+*.ipdb
+*.pdb
+*.recipe
+*.tlog
+bin/
+tmp/
+
+# GitHub Actions workflow (no workflow PAT scope)
+.github/
+
+# Misc
+*.txt

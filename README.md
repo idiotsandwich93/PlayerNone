@@ -67,6 +67,20 @@ Change Log
 ---- Fork Changes by idiotsandwich93 ----
 
 
+-- v54: Transit System — Station Entry/Exit --
+
+- Peds now visibly walk to the station entrance before boarding.
+- When a ped reaches within 15m of their departure station, they are
+  hidden (simulating entering the subway) and a ride timer (45-120s)
+  starts. After the timer they reappear at a random station on the
+  same map.
+- Added TransitStation field to PlayerBrain to track which departure
+  station the ped is heading to. Transit is now a two-phase process:
+  walking (TransitTimer==0) then riding (TransitTimer>0).
+- Fixed a bug where the ride timer started immediately at spawn time
+  instead of when the ped actually reached the station.
+
+
 -- v53: Complete Hacker Menu Removal --
 
 - Completed the hacker menu removal started in v51. The Pz_TrollMenu

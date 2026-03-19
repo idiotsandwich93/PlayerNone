@@ -2106,10 +2106,11 @@ void GoToTransit(PlayerBrain* brain)
 	WalkHere(peddy, NewVector3(stations[bestIdx].X, stations[bestIdx].Y, stations[bestIdx].Z));
 	PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(peddy, true);
 
-	// Transit ride duration: 90 s - 3 min (time to walk to station + simulated ride).
-	brain->OnTransit    = true;
-	brain->TransitTimer = InGameTime() + RandomInt(90000, 180000);
-	brain->FindPlayer   = brain->TransitTimer + 5000;
+	// Timer starts when the ped actually reaches the entrance (checked in ProcessPZ).
+	brain->OnTransit      = true;
+	brain->TransitTimer   = 0;           // 0 = still walking, not yet boarded
+	brain->TransitStation = bestIdx;
+	brain->FindPlayer     = InGameTime() + 300000; // 5-min ceiling, tightened on board
 }
 
 void PickNextAction(PlayerBrain* brain)
@@ -5556,18 +5557,42 @@ void ProcessPZ(PlayerBrain* brain)
 									PickNextAction(brain);
 								}
 							}
-							else if (brain->OnTransit && GameTime > brain->TransitTimer)
+							else if (brain->OnTransit && brain->TransitTimer == 0)
 							{
-								// Transit ride complete: teleport ped to a random station on the same map.
+								// Phase 1: ped walking to station entrance.
+								// When close enough, hide them and start the ride timer.
+								Vector3 pedPosT = ENTITY::GET_ENTITY_COORDS(PlayZero, true);
+								bool inLCT = (pedPosT.x > 2800.0f);
+								const auto& stationsT = inLCT ? LCSubwayStations : LSSubwayStations;
+								int depIdx = brain->TransitStation;
+								if (depIdx >= 0 && depIdx < (int)stationsT.size())
+								{
+									float dx = stationsT[depIdx].X - pedPosT.x;
+									float dy = stationsT[depIdx].Y - pedPosT.y;
+									if (dx * dx + dy * dy < 15.0f * 15.0f)
+									{
+										// Ped reached station entrance — board the train.
+										ENTITY::SET_ENTITY_VISIBLE(PlayZero, false, false);
+										TASK::CLEAR_PED_TASKS(PlayZero);
+										brain->TransitTimer = GameTime + RandomInt(45000, 120000);
+										brain->FindPlayer   = brain->TransitTimer + 5000;
+									}
+								}
+							}
+							else if (brain->OnTransit && brain->TransitTimer > 0 && GameTime > brain->TransitTimer)
+							{
+								// Phase 2: ride complete — teleport to a random station and show ped.
 								Vector3 pedPosT = ENTITY::GET_ENTITY_COORDS(PlayZero, true);
 								bool inLCT = (pedPosT.x > 2800.0f);
 								const auto& stationsT = inLCT ? LCSubwayStations : LSSubwayStations;
 								int destIdx = LessRandomInt("TransitDest", 0, (int)stationsT.size() - 1);
 								MoveEntity(PlayZero, NewVector3(stationsT[destIdx].X, stationsT[destIdx].Y, stationsT[destIdx].Z));
+								ENTITY::SET_ENTITY_VISIBLE(PlayZero, true, false);
 								PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(PlayZero, false);
-								brain->OnTransit    = false;
-								brain->TransitTimer = 0;
-								brain->FindPlayer   = GameTime + RandomInt(20000, 40000);
+								brain->OnTransit      = false;
+								brain->TransitTimer   = 0;
+								brain->TransitStation = -1;
+								brain->FindPlayer     = GameTime + RandomInt(20000, 40000);
 								PickNextAction(brain);
 							}
 							else if (brain->ShopTimer > 0 && GameTime > brain->ShopTimer)
