@@ -67,6 +67,29 @@ Change Log
 ---- Fork Changes by idiotsandwich93 ----
 
 
+-- v53: Complete Hacker Menu Removal --
+
+- Completed the hacker menu removal started in v51. The Pz_TrollMenu
+  function and its main-menu entry point were still present in script.cpp,
+  causing the hacker menu ("hAcKErZZZ mENu") to appear in-game.
+- Removed Pz_TrollMenu() and its entry in Pz_MenuStart(). The main menu
+  now contains only: Contact Menu, Player Zero Settings, Clear Session,
+  Invite, and Menu Orientation.
+- Removed all subordinate hacker functions that were only reachable via
+  the hacker menu: Pz_TrollPlayerz, Pz_TrollPed, Pz_TrollAdd,
+  BurnPlayers, CashFlow, GetingOffHere, SnowTime (hacker-menu snow
+  toggle), and HaCK001 through HaCK012.
+- Removed EclipsWindMill, WindMill prop, and GotWindMill bool (Eclipse
+  apartment windmill prop that was a hacker menu option).
+- Removed LeaveYourApp helper (only called from Pz_TrollAdd).
+- Replaced residual hacker-labeled strings in PZLangEng (PZSys.h) with
+  neutral text so no hacker content can leak through any future string
+  lookup. String indices are preserved (no removals) so all other
+  PZTranslate[] references remain valid.
+- NotWanted bool and its game-loop check at line 7292 are retained
+  (now permanently false, harmless dead guard).
+
+
 -- v52: Transit System (Subway / Train Stations) --
 
 - On-foot peds now occasionally use the subway network (10% chance per
