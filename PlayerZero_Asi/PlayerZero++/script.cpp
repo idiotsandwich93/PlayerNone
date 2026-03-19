@@ -23,8 +23,6 @@ using namespace PZData;
 bool PrivateJet = false;
 bool BusDriver = false;
 bool RentoCop = false;
-bool HackAttacks = false;
-bool AddHackAttacks = false;
 
 bool PlayDead = false;
 bool ClosedSession = false;
@@ -519,16 +517,6 @@ void LoadinData()
 
 	PED::SET_PED_AS_GROUP_LEADER(PLAYER::PLAYER_PED_ID(), FollowMe);
 	PED::SET_GROUP_FORMATION(FollowMe, 3);
-	
-	MySettings.TFHTA--;
-	if (MySettings.TFHTA < 0 && !MySettings.InviteOnly)
-	{
-		if (LessRandomInt("TFHTAV2", 0, 90) == 13)
-		{
-			AddHackAttacks = true;
-			MySettings.TFHTA = 10;
-		}
-	}
 	
 	OutfitFolderTest();
 
@@ -2746,7 +2734,7 @@ Ped FindAFight(PlayerBrain* brain)
 		{
 			for (int i = 0; i < (int)PedList.size(); i++)
 			{
-				if (MySettings.Aggression > 9 || brain->TheHacker)
+				if (MySettings.Aggression > 9)
 				{
 					if (PedList[i].ThisPed != brain->ThisPed && PedList[i].ThisPed != NULL && !PedList[i].YoDeeeed)
 					{
@@ -2768,7 +2756,7 @@ Ped FindAFight(PlayerBrain* brain)
 			{
 				for (int i = 0; i < (int)PedList.size(); i++)
 				{
-					if (MySettings.Aggression > 9 || brain->TheHacker)
+					if (MySettings.Aggression > 9)
 					{
 						if (PedList[i].ThisPed != brain->ThisPed && PedList[i].ThisPed != NULL && !PedList[i].YoDeeeed)
 						{
@@ -2797,7 +2785,7 @@ Ped FindAFight(PlayerBrain* brain)
 		{
 			for (int i = 0; i < (int)PedList.size(); i++)
 			{
-				if (MySettings.Aggression > 9 || brain->TheHacker)
+				if (MySettings.Aggression > 9)
 				{
 					if (PedList[i].ThisPed != brain->ThisPed && PedList[i].ThisPed != NULL && !PedList[i].YoDeeeed && PedList[i].IsHeli)
 						You = i;
@@ -2842,7 +2830,7 @@ Ped FindAFight(PlayerBrain* brain)
 		{
 			for (int i = 0; i < (int)PedList.size(); i++)
 			{
-				if (MySettings.Aggression > 9 || brain->TheHacker)
+				if (MySettings.Aggression > 9)
 				{
 					if (PedList[i].ThisPed != brain->ThisPed && PedList[i].ThisPed != NULL && !PedList[i].YoDeeeed && !PedList[i].IsPlane && !PedList[i].IsHeli)
 					{
@@ -2867,7 +2855,7 @@ Ped FindAFight(PlayerBrain* brain)
 			}
 		}
 
-		if (!Friend && MySettings.Aggression > 5 || brain->TheHacker)
+		if (!Friend && MySettings.Aggression > 5)
 		{
 			if (You != -1)
 			{
@@ -3288,13 +3276,6 @@ Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 
 	Hash MyModel = MyHashKey(brain->PFMySetting.Model);
 
-	if (HackAttacks && !brain->TheHacker && !brain->Driver && !brain->Passenger && LessRandomInt("AnimalChance", 1, 10) < 5)
-	{
-		brain->IsAnimal = true;
-		MyModel = MyHashKey(AnimalFarm[RandomInt(0, (int)AnimalFarm.size() - 1)]);
-	}
-	else if (brain->TheHacker)
-		brain->IsAnimal = true;
 
 	STREAMING::REQUEST_MODEL(MyModel);// Check if the model is valid
 
@@ -3411,8 +3392,6 @@ Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 					//if (!brain->Driver || !brain->Passenger)
 					//	WalkHere(ThisPed, FindingShops(ThisPed));
 				}
-				else if (brain->TheHacker)
-					RelGroupMember(brain->ThisPed, GP_Mental);
 				else
 					FightPlayer(brain);
 
@@ -3628,13 +3607,7 @@ Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 					brain->DirBlip = false;
 			}
 
-			if (brain->TheHacker)
-			{
-				ENTITY::SET_ENTITY_INVINCIBLE(brain->ThisPed, true);
-				PED::SET_PED_COMPONENT_VARIATION(brain->ThisPed, 0, 0, 1, 2);
-
-			}
-			else if (MySettings.PassiveMode)
+			if (MySettings.PassiveMode)
 				ENTITY::SET_ENTITY_ALPHA(brain->ThisPed, 120, false);
 		}
 		else
@@ -4485,21 +4458,10 @@ void InABuilding()
 
 	int iMit = LessRandomInt("InABuilding", rangeStart, rangeEnd);
 	std::string sName = SillyNameList();
-	if (AddHackAttacks)
-	{
-		sName = "DoomSlayer";
-		iMit = 3;
-	}
 	Blip FakeB = NULL;
 	LocalBlip(&FakeB, AFKPlayers[iMit], 417, sName, 0);
 	int iNat = RandomInt(1, 5);
 	AfkPlayer MyAfk = AfkPlayer(FakeB, InGameTime() + RandomInt(PZSetMinSession, PZSetMaxSession), iNat, iMit, sName, sName, UniqueLevels());
-	if (AddHackAttacks)
-	{
-		MyAfk.TheHacker = true;
-		AddHackAttacks = false;
-		HackAttacks = true;
-	}
 
 	AFKList.push_back(MyAfk);
 }
@@ -4772,93 +4734,12 @@ void PlayersKiller()
 	PlayDead = false;
 }
 
-bool HackerIsInSession = false;
 bool KeepFrieands = true;
 std::vector<Vector3> PlaneFlightPath;
 int ChatSHat = 0;
 
 void ProcessAfk(AfkPlayer* brain)
 {
-	if (brain->TheHacker)
-	{
-		if (brain->StartTheHack == 0)
-		{
-			if (PlayerZinSesh() > MySettings.MaxPlayers - 4)
-			{
-				brain->StartTheHack--;
-				brain->HackingTime = InGameTime() + 2500;
-			}
-		}
-		else if (brain->StartTheHack == 1)
-		{
-			if (brain->HackingTime < InGameTime())
-			{
-				brain->StartTheHack = 2;
-				for (int i = 0; i < (int)PedList.size(); i++)
-				{
-					if (PedList[i].ThisPed != NULL)
-						DropObjects(EntityPosition(PedList[i].ThisPed));
-				}
-			}
-		}
-		else if (brain->StartTheHack == 2)
-		{
-			brain->StartTheHack = 3;
-
-			int iPedLocate = ReteaveAfk(brain->MyIdentity);
-
-			ClothBank MB = NewClothBank();
-			int iNat = RandomInt(1, 5);
-			int iGetGunnin = YourGunNum();
-			Vector3 LandHere = FowardOf(PLAYER::PLAYER_PED_ID(), 5, true);
-			PlayerBrain newBrain = PlayerBrain(brain->MyName, brain->MyIdentity, MB, InGameTime() + 10000000, brain->Level, false, false, iNat, iGetGunnin, 0, "", -1);
-			newBrain.TheHacker = true;
-			newBrain.IsSpecialPed = true;
-			newBrain.PFMySetting.Model = "a_c_cat_01";
-			PedList.push_back(newBrain);
-			PlayerPedGen(Vector4(LandHere.x, LandHere.y, LandHere.z, 0.0), &PedList[PedList.size() - 1], false);
-			AFKList[iPedLocate].MoveToOpen = true;
-			AFKList[iPedLocate].TimeOn = 0;
-
-		}
-		else if (brain->StartTheHack < -50)
-		{
-			if (!(bool)ENTITY::IS_ENTITY_DEAD((Entity)PLAYER::PLAYER_PED_ID()))
-			{
-				HackerIsInSession = true;
-				WAIT(4000);
-				brain->StartTheHack = 1;
-				Vector3 WindyMiller = NewVector3(-797.73, 295.47, 190.00);
-				if (WindMill == NULL)
-					EclipsWindMill();
-
-				WAIT(1000);
-				for (int i = 0; i < (int)PedList.size(); i++)
-				{
-					if (PedList[i].ThisPed != NULL)
-						MoveEntity(PedList[i].ThisPed, InAreaOfV3(WindyMiller, 2.0f, 7.0f));
-					WAIT(500);
-				}
-				WAIT(1000);
-				MoveEntity(PLAYER::PLAYER_PED_ID(), InAreaOfV3(WindyMiller, 2.0f, 7.0f));
-				brain->HackingTime = InGameTime() + 2000;
-			}
-		}
-		else if (brain->StartTheHack < 0)
-		{
-			if (brain->HackingTime < InGameTime())
-			{
-				brain->StartTheHack--;
-				brain->HackingTime = InGameTime() + 500;
-				if (brain->HackSwitch)
-					LocalBlip(&brain->ThisBlip, AFKPlayers[brain->App], 303, brain->MyName, 1);
-				else
-					LocalBlip(&brain->ThisBlip, AFKPlayers[brain->App], 417, brain->MyName, 0);
-
-				brain->HackSwitch = !brain->HackSwitch;
-			}
-		}
-	}
 }
 void ProcessPZ(PlayerBrain* brain)
 {
@@ -4990,7 +4871,7 @@ void ProcessPZ(PlayerBrain* brain)
 				BlipingBlip(brain);
 
 				// Wanted level awareness: hostile NPCs respond faster when player has stars
-				if (!brain->Friendly && !brain->Follower && !brain->Driver && !brain->Passenger && !brain->TheHacker)
+				if (!brain->Friendly && !brain->Follower && !brain->Driver && !brain->Passenger)
 				{
 					int iWanted = PLAYER::GET_PLAYER_WANTED_LEVEL(ThePlayer);
 					if (iWanted >= 2 && brain->FindPlayer > GameTime + 30000)
@@ -5027,41 +4908,7 @@ void ProcessPZ(PlayerBrain* brain)
 				}
 				else if (brain->IsSpecialPed)
 				{
-					if (brain->TheHacker)
-					{
-						if (brain->ThisEnemy != NULL)
-						{
-							if (!(bool)ENTITY::DOES_ENTITY_EXIST(brain->ThisEnemy))
-								brain->ThisEnemy = NULL;
-							else if ((bool)ENTITY::IS_ENTITY_DEAD(brain->ThisEnemy))
-								brain->ThisEnemy = NULL;
-							else if (brain->FindPlayer < GameTime)
-							{
-								int iVic = ReteaveBrain(brain->ThisEnemy);
-								if (iVic > -1 && iVic < (int)PedList.size())
-									FireOrb(brain, &PedList[iVic]);
-								else if (iVic == -1)
-									FireOrb(brain, nullptr);
-								brain->ThisEnemy = NULL;
-							}
-						}
-						else
-						{
-							brain->ThisEnemy = FindAFight(brain);
-							if (brain->ThisEnemy == NULL)
-							{
-								WalkHere(PlayZero, FindingShops(PlayZero));
-								brain->ShopTimer = GameTime + RandomInt(20000, 45000);
-							}
-							else
-							{
-								brain->FindPlayer = GameTime + RandomInt(25000, 30000);
-								MoveEntity(PlayZero, EntityPosition(brain->ThisEnemy));
-								GreefWar(PlayZero, brain->ThisEnemy);
-							}
-						}
-					}
-					else if (brain->SessionJumper)
+					if (brain->SessionJumper)
 					{
 						if (DistanceTo(PedPos, PlayerPos) < 10.00f)
 						{
@@ -5306,15 +5153,9 @@ void ProcessPZ(PlayerBrain* brain)
 						brain->MoneyDrops.BagsDroped = 0;
 						brain->MoneyDrops.BagTimer = 0;
 						brain->DropMoneyBags = false;
-						brain->HackReaction = false;
 					}
 				}
-				else if (brain->HackReaction)
-				{
-					if (LessRandomInt("HackReackt", 1, 10) < 3)
-						brain->TimeOn = 0;
-					brain->HackReaction = false;
-				}
+
 				else if (brain->WanBeFriends)
 				{
 					if (YouFriend.MyBrain != nullptr)
@@ -6155,18 +5996,12 @@ void PlayerZerosAI()
 	{
 		if ((int)AFKList.size() > 1)
 		{
-			if (AFKList[0].TheHacker)
-				AFKList[1].TimeOn = 0;
-			else
-				AFKList[0].TimeOn = 0;
+			AFKList[0].TimeOn = 0;
 
 		}
 		else if ((int)PedList.size() > 1)
 		{
-			if (PedList[0].TheHacker)
-				PedList[1].TimeOn = 0;
-			else
-				PedList[0].TimeOn = 0;
+			PedList[0].TimeOn = 0;
 
 		}
 	}
@@ -6819,7 +6654,6 @@ void HaCK001(void* obj)
 		Friend->Driver = false;
 		Friend->Passenger = false;
 		Friend->IsPlane = false;
-		Friend->HackReaction = true;
 		Vector3 LandHere = FowardOf(PLAYER::PLAYER_PED_ID(), 5, true);
 		MoveEntity(Friend->ThisPed, LandHere);
 		Pz_TrollPed(obj);
@@ -6832,7 +6666,6 @@ void HaCK002(void* obj)
 	{
 		Pz_MenuList.clear();
 		FIRE::START_ENTITY_FIRE(Friend->ThisPed);
-		Friend->HackReaction = true;
 		FightPlayer(Friend);
 	}
 }
@@ -6853,7 +6686,6 @@ void HaCK004(void* obj)
 		Pz_MenuList.clear();
 		Vector3 Above = ENTITY::GET_ENTITY_COORDS(Friend->ThisPed, true);
 		Above.z += 25.0;
-		Friend->HackReaction = true;
 		DropObjects(Above);
 	}
 }
@@ -6864,7 +6696,6 @@ void HaCK005(void* obj)
 	{
 		Pz_MenuList.clear();
 		FireOrb(nullptr, Friend);
-		Friend->HackReaction = true;
 		FightPlayer(Friend);
 	}
 }
@@ -6881,8 +6712,7 @@ void HaCK006(void* obj)
 			ENTITY::DETACH_ENTITY(ThePlayer, 0, 0);
 			AI::CLEAR_PED_TASKS_IMMEDIATELY(ThePlayer);
 			Friend->PiggyBackin = false;
-			Friend->HackReaction = false;
-		}
+			}
 		else
 		{
 			if (iAmPig != -1)
@@ -6895,8 +6725,7 @@ void HaCK006(void* obj)
 			ForceAnim(ThePlayer, "amb@code_human_in_bus_passenger_idles@female@sit@idle_a", "idle_a", PlayerPosi(), NewVector3(0.0, 0.0, 0.0));
 			ENTITY::ATTACH_ENTITY_TO_ENTITY(ThePlayer, Friend->ThisPed, 31086, 0.10, 0.15, 0.61, 0.00, 0.00, 180.00, 0, 0, 0, 0, 2, 1);
 			Friend->PiggyBackin = true;
-			Friend->HackReaction = true;
-		}
+			}
 	}
 }
 void HaCK007(void* obj)
@@ -6929,7 +6758,6 @@ void HaCK009(void* obj)
 		Pz_MenuList.clear();
 		Friend->Driver = false;
 		Friend->Passenger = false;
-		Friend->HackReaction = true;
 		if (Friend->ThisVeh != NULL && Friend->ThisPed != NULL)
 			GetOutVehicle(Friend->ThisPed);
 	}
@@ -6964,8 +6792,7 @@ void HaCK011(void* obj)
 		if (Friend->XmasTree != NULL)
 		{
 			ENTITY::DELETE_ENTITY(&Friend->XmasTree);
-			Friend->HackReaction = false;
-			Friend->XmasTree = NULL;
+				Friend->XmasTree = NULL;
 		}
 		else if (Friend->ThisPed != NULL)
 		{
@@ -6973,8 +6800,7 @@ void HaCK011(void* obj)
 			Friend->XmasTree = BuildProps("prop_xmas_tree_int", Vme, NewVector3(0.0, 90.0, 0.0), false);
 			ENTITY::SET_ENTITY_COLLISION(Friend->XmasTree, false, false);
 			ENTITY::ATTACH_ENTITY_TO_ENTITY(Friend->XmasTree, Friend->ThisPed, PED::GET_PED_BONE_INDEX(Friend->ThisPed, 24818), 0.0, 0.0, 0.0, 0.0, 90.0, 0.0, 0, 0, 0, 1, 2, 1);
-			Friend->HackReaction = true;
-		}
+			}
 	}
 }
 void HaCK012(void* obj)
@@ -6989,8 +6815,7 @@ void HaCK012(void* obj)
 			Friend->EWO = true;
 			EasyWayOut(Friend->ThisPed);
 
-			Friend->HackReaction = true;
-			FightPlayer(Friend);
+				FightPlayer(Friend);
 		}
 	}
 }
@@ -7225,192 +7050,6 @@ void Pz_MenuStart()
 	Pz_MenuList.push_back(MyMenu);
 }
 
-int GotHacked = 1;
-int OrigLang = 0;
-Prop PlayTree = NULL;
-
-void GotHacked006()
-{
-	GotHacked++;
-}
-void GotHacked005()
-{
-	Pz_MenuList.clear();
-	GotHacked++;
-	ItsSnowing = false;
-	SnowTime();
-	MySettings.Pz_Lang = OrigLang;
-	LoadLang(MySettings.Pz_Lang);
-	MeunLaggOut();
-	HackAttacks = false;
-}
-void GotHacked004()
-{
-	Pz_MenuList.clear();
-	int MoreHacks = LessRandomInt("MissingCat", 1, 5);
-	if (MoreHacks == 1)
-	{
-		Vector3 PlPos = EntityPosition(PLAYER::PLAYER_PED_ID());
-		MoveEntity(PLAYER::PLAYER_PED_ID(), NewVector3(PlPos.x, PlPos.y, PlPos.z + 400.0f));
-	}
-	else if (MoreHacks == 2)
-	{
-		int iPick = -1;
-		for (int i = 0; i < (int)PedList.size(); i++)
-		{
-			if (PedList[i].Driver && PedList[i].ThisVeh != NULL)
-				iPick = i;
-		}
-		if (iPick > 0)
-			HaCK010(&PedList[iPick]);
-		else
-			DropObjects(EntityPosition(PLAYER::PLAYER_PED_ID()));
-	}
-	else if (MoreHacks == 3)
-	{
-		FIRE::START_ENTITY_FIRE(PLAYER::PLAYER_PED_ID());
-	}
-	else if (MoreHacks == 4)
-	{
-		MoneyBags Mbags = MoneyBags();
-
-		while (Mbags.BagsDroped < 10)
-		{
-			if (Mbags.BagTimer < InGameTime())
-			{
-				Mbags.BagsDroped++;
-				Mbags.BagTimer = InGameTime() + 500;
-				Vector4 AboutHere = InAreaOf(ENTITY::GET_ENTITY_COORDS(PLAYER::PLAYER_PED_ID(), true), 0.01f, 4.0f);
-				Prop MoreBag = BuildProps(Mbags.Bags, NewVector3(AboutHere.X, AboutHere.Y, AboutHere.Z + 5.0f), NewVector3(0.0, 0.0, 0.0), true);
-				Mbags.TheseBags.push_back(MoreBag);
-			}
-			for (int i = 0; i < (int)Mbags.TheseBags.size(); i++)
-			{
-				if (DistanceTo(PLAYER::PLAYER_PED_ID(), Mbags.TheseBags[i]) < 1.25f)
-				{
-					if ((bool)ENTITY::DOES_ENTITY_EXIST(Mbags.TheseBags[i]))
-						ENTITY::DELETE_ENTITY(&Mbags.TheseBags[i]);
-				}
-			}
-			WAIT(0);
-		}
-		WAIT(2000);
-		
-		TakeAwayYourMoney(&Mbags);
-	}
-	else if (MoreHacks == 5)
-	{
-		PLAYER::SET_PLAYER_WANTED_LEVEL(PLAYER::PLAYER_ID(), 5, true);
-		PLAYER::SET_PLAYER_WANTED_LEVEL_NOW(PLAYER::PLAYER_ID(), true);
-	}
-
-	if (HackerIsInSession)
-	{
-		GotHacked++;
-	}
-}
-void GotHacked003()
-{
-	Pz_MenuList.clear();
-	PlayerEWO();
-}
-void GotHacked002()
-{
-	Pz_MenuList.clear();
-
-	if (PlayTree != NULL)
-	{
-		ENTITY::DELETE_ENTITY(&PlayTree);
-		PlayTree = NULL;
-		GotHacked++;
-	}
-	else if (PlayTree == NULL)
-	{
-		ItsSnowing = true;
-		SnowTime();
-		Vector3 Vme = ENTITY::GET_ENTITY_COORDS(PLAYER::PLAYER_PED_ID(), 0);
-		PlayTree = BuildProps("prop_xmas_tree_int", Vme, NewVector3(0.0, 90.0, 0.0), false);
-		ENTITY::SET_ENTITY_COLLISION(PlayTree, false, false);
-		ENTITY::ATTACH_ENTITY_TO_ENTITY(PlayTree, PLAYER::PLAYER_PED_ID(), PED::GET_PED_BONE_INDEX(PLAYER::PLAYER_PED_ID(), 24818), 0.0, 0.0, 0.0, 0.0, 90.0, 0.0, 0, 0, 0, 1, 2, 1);
-		WAIT(4000);
-	}
-}
-void GotHacked001()
-{
-	Pz_MenuList.clear();
-	OrigLang = MySettings.Pz_Lang;
-	MySettings.Pz_Lang = LessRandomInt("GotHacked001", 0, 12);
-	if (OrigLang == MySettings.Pz_Lang)
-		MySettings.Pz_Lang = LessRandomInt("GotHacked001", 0, 12);
-	LoadLang(MySettings.Pz_Lang);
-	GotHacked++;
-}
-void Pz_HackedMenu()
-{
-	if (GotHacked == 1)
-	{
-		std::vector<GVM::GVMFields> PzMenuz = {
-			GVM::GVMFields("void*->", "{ x001[iField] }", &GotHacked001),
-			GVM::GVMFields("10011010", "01101101"),
-		};
-		GVM::GVMSystem MyMenu = GVM::GVMSystem("void*->Ip 312.678.968", PzMenuz);
-		Pz_MenuList.push_back(MyMenu);
-	}
-	else if (GotHacked == 2)
-	{
-		std::vector<GVM::GVMFields> PzMenuz = {
-			GVM::GVMFields("10011010", "01101101"),
-			GVM::GVMFields("10010101", "00110010"),
-			GVM::GVMFields("00110101", "10100101"),
-			GVM::GVMFields("void*->", "{ x032[iField] }", &GotHacked002),
-			GVM::GVMFields("11110110", "10110101"),
-			GVM::GVMFields("01100001", "01010010")
-		};
-		GVM::GVMSystem MyMenu = GVM::GVMSystem("void*->Ip 056.358.113", PzMenuz);
-		Pz_MenuList.push_back(MyMenu);
-	}
-	else if (GotHacked == 3)
-	{
-		MySettings.Pz_Lang = OrigLang;
-		std::vector<GVM::GVMFields> PzMenuz = {
-			GVM::GVMFields(PZTranslate[34], PZTranslate[35], &Pz_Contacts),
-			GVM::GVMFields("10011010", "01101101"),
-			GVM::GVMFields("10010101", "00110010"),
-			GVM::GVMFields("11110110", "10110101"),
-			GVM::GVMFields("01100001", "01010010"),
-			GVM::GVMFields("void*->", "{ x512[iField] }", &GotHacked004)
-		};
-		GVM::GVMSystem MyMenu = GVM::GVMSystem("void*->Ip 443.417.473", PzMenuz);
-		Pz_MenuList.push_back(MyMenu);
-	}
-	else if (GotHacked == 4)
-	{
-		std::vector<GVM::GVMFields> PzMenuz = {
-			GVM::GVMFields(PZTranslate[36], PZTranslate[37], &GotHacked003),
-			GVM::GVMFields("void*->", "{ x06[iField] }", &GotHacked003),
-			GVM::GVMFields("10011010", "01101101"),
-			GVM::GVMFields("01100001", "01010010"),
-			GVM::GVMFields(PZTranslate[34], PZTranslate[35], &GotHacked003),
-			GVM::GVMFields("11110110", "10110101")
-		};
-		GVM::GVMSystem MyMenu = GVM::GVMSystem("void*->Ip 121.786.455", PzMenuz, &GotHacked006, false);
-		Pz_MenuList.push_back(MyMenu);
-	}
-	else
-	{
-		std::vector<GVM::GVMFields> PzMenuz = {
-			GVM::GVMFields("10011010", "01101101"),
-			GVM::GVMFields(PZTranslate[34], PZTranslate[35], &GotHacked003),
-			GVM::GVMFields("11110110", "10110101"),
-			GVM::GVMFields(PZTranslate[38], PZTranslate[39], &GotHacked005),
-			GVM::GVMFields(PZTranslate[36], PZTranslate[37], &GotHacked003),
-			GVM::GVMFields("01100001", "01010010")
-		};
-		GVM::GVMSystem MyMenu = GVM::GVMSystem("void*->Ip 443.417.473", PzMenuz);
-		Pz_MenuList.push_back(MyMenu);
-	}
-}
-
 bool PhonesOff = false;
 int SlowScan = 0;
 int ClosingPhone = 0;
@@ -7635,26 +7274,6 @@ void JustMenus()
 		{
 			if (!MenuOpen)
 			{
-				if (HackAttacks)
-				{
-					if (YouFriend.MyBrain != nullptr)
-						WillYouBeMyFriend();
-
-					if (GVM::ButtonDown(MySettings.Control_Keys_Players_List))
-						DisplayPlayers();
-
-					if (WHileKeyDown(MySettings.Keys_Open_Menu))
-					{
-						MenuOpen = true;
-						Pz_HackedMenu();
-					}
-					else if (GVM::ButtonDown(MySettings.Control_A_Open_Menu) && GVM::ButtonDown(MySettings.Control_B_Open_Menu))
-					{
-						MenuOpen = true;
-						Pz_HackedMenu();
-					}
-				}
-				else
 				{
 					if (YouFriend.MyBrain != nullptr)
 						WillYouBeMyFriend();

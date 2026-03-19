@@ -67,6 +67,28 @@ Change Log
 ---- Fork Changes by idiotsandwich93 ----
 
 
+-- v51: Remove Hacker Players and Hacker Menu --
+
+- Removed the hacker player system entirely. This includes the random
+  trigger that would secretly spawn a "DoomSlayer" AFK entry and convert
+  it into a hostile cat-model ped with the TheHacker flag, the hacking
+  sequence that teleported all peds to the windmill and dropped objects,
+  the ProcessAfk hacker state machine (StartTheHack / HackingTime /
+  HackSwitch / HackerIsInSession), and the FireOrb combat behavior used
+  only by hacker peds.
+- Removed Pz_HackedMenu and all GotHacked001-006 functions. The hacked
+  menu replaced the normal in-game menu with a fake binary-string UI
+  and applied annoying effects (language change, tree attachment, snow,
+  player teleport, fire, wanted level). The normal menu now always opens
+  without any HackAttacks check.
+- Removed HackReaction flag usage from friend interaction callbacks.
+  HackReaction had a 30% chance of despawning the reacting ped — no
+  longer triggered since no hacker peds exist to cause it.
+- GP_Mental relationship group declaration is kept (harmless) since it
+  is referenced in group relationship setup code that would require a
+  larger refactor to remove safely.
+
+
 -- v50: Revert Map-Transition Bulk Despawn --
 
 - Removed the v48 map-transition cleanup that set TimeOn=0 on all peds
