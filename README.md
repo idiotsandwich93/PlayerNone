@@ -67,6 +67,17 @@ Change Log
 ---- Fork Changes by idiotsandwich93 ----
 
 
+-- v50: Revert Map-Transition Bulk Despawn --
+
+- Removed the v48 map-transition cleanup that set TimeOn=0 on all peds
+  whenever the LC/LS map flag changed. The cleanup was too aggressive:
+  any brief fluctuation in PlayerPosi() (cutscenes, interior loads, etc.)
+  would flip the flag and instantly despawn every ped and driver. The
+  existing per-spawn guards in FindPedSpPoint() (isLC coordinate check +
+  hard sanity fallback) already prevent peds from spawning on the wrong
+  map, making the bulk sweep unnecessary.
+
+
 -- v49: Fix LC Driver Navigation + Map-Transition Guard --
 
 - Fixed LC (LPP) driver navigation. RandomLocation() previously negated

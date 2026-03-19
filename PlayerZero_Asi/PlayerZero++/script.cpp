@@ -6150,28 +6150,6 @@ int AiPedCount = 0;
 int AiAppCount = 0;
 void PlayerZerosAI()
 {
-	// Detect LC <-> LS map transitions and expire all peds when the map
-	// changes.  Peds spawned at named locations on the old map (e.g.
-	// LC coordinates X>2800) would be stranded in open ocean in the new
-	// world-space and drown repeatedly.  Setting TimeOn=0 queues a clean
-	// despawn; ProcessPZ will remove each ped and respawn it at a
-	// correct named location for the current map on the next cycle.
-	{
-		static bool s_prevIsLC = false;
-		// Guard: skip if the player entity isn't loaded yet (coords == 0,0,0
-		// during loading screens would flip the flag and wrongly despawn peds).
-		if ((bool)ENTITY::DOES_ENTITY_EXIST(PLAYER::PLAYER_PED_ID()))
-		{
-			Vector3 pCheck = PlayerPosi();
-			const bool curIsLC = (pCheck.x > 2800.0f);
-			if (curIsLC != s_prevIsLC)
-			{
-				s_prevIsLC = curIsLC;
-				for (int i = 0; i < (int)PedList.size(); i++)
-					PedList[i].TimeOn = 0;
-			}
-		}
-	}
 
 	if (PlayerZinSesh() > MySettings.MaxPlayers)
 	{
