@@ -67,6 +67,30 @@ Change Log
 ---- Fork Changes by idiotsandwich93 ----
 
 
+-- v52: Transit System (Subway / Train Stations) --
+
+- On-foot peds now occasionally use the subway network (10% chance per
+  PickNextAction roll). When selected, GoToTransit() walks the ped to
+  the nearest station on the current map, then after 90 seconds to 3
+  minutes (simulating the walk to the platform and the ride), teleports
+  the ped to a random station on the same map so they emerge elsewhere.
+- 30 subway stations sourced directly from Locations.xml and
+  Locations_LPP.xml:
+    LS (6 stations): Burton, Little Seoul, Del Perro, Portola Drive,
+    LSIA Terminal 4, LSIA Parking.
+    LC (24 stations): Hove Beach, Castle Garden, City Hall, Easton,
+    East Park, Emerald, Feldspar, Frankfort Ave, Frankfort High,
+    Frankfort Low, Hematite, Manganese East/West, North Park, Quartz
+    St East/West, Suffolk, Vauxite, Vespucci Circus, West Park,
+    Huntington St, Lynch St, San Quentin Ave, Winmill St.
+- Map isolation enforced: LC peds always transit between LC stations;
+  LS peds always transit between LS stations. The isLC (X>2800) check
+  is evaluated at both dispatch and arrival.
+- New PlayerBrain fields: OnTransit (bool) and TransitTimer (int).
+  Transit timer handled in ProcessPZ alongside existing ShopTimer and
+  ScenarioTimer checks. No existing behavior paths are affected.
+
+
 -- v51: Remove Hacker Players and Hacker Menu --
 
 - Removed the hacker player system entirely. This includes the random

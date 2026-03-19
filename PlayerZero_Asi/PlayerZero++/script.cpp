@@ -2084,6 +2084,34 @@ bool DoStoreRobbery(PlayerBrain* brain)
 	return true;
 }
 
+void GoToTransit(PlayerBrain* brain)
+{
+	Ped peddy = brain->ThisPed;
+	Vector3 pedPos = ENTITY::GET_ENTITY_COORDS(peddy, true);
+	bool inLC = (pedPos.x > 2800.0f);
+
+	const auto& stations = inLC ? LCSubwayStations : LSSubwayStations;
+
+	// Pick nearest station as the departure point.
+	float bestDist = 1e12f;
+	int   bestIdx  = 0;
+	for (int i = 0; i < (int)stations.size(); i++)
+	{
+		float dx = stations[i].X - pedPos.x;
+		float dy = stations[i].Y - pedPos.y;
+		float dSq = dx * dx + dy * dy;
+		if (dSq < bestDist) { bestDist = dSq; bestIdx = i; }
+	}
+
+	WalkHere(peddy, NewVector3(stations[bestIdx].X, stations[bestIdx].Y, stations[bestIdx].Z));
+	PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(peddy, true);
+
+	// Transit ride duration: 90 s - 3 min (time to walk to station + simulated ride).
+	brain->OnTransit    = true;
+	brain->TransitTimer = InGameTime() + RandomInt(90000, 180000);
+	brain->FindPlayer   = brain->TransitTimer + 5000;
+}
+
 void PickNextAction(PlayerBrain* brain)
 {
 	Ped peddy = brain->ThisPed;
@@ -2181,10 +2209,16 @@ void PickNextAction(PlayerBrain* brain)
 		WalkHere(peddy, FindingShops(peddy));
 		brain->ShopTimer = InGameTime() + RandomInt(15000, 30000);
 	}
-	else if (roll <= 85)
+	else if (roll <= 80)
 	{
 		// Brief standing animation (smoking, leaning, phone, etc.)
 		DoAmbientScenario(brain);
+	}
+	else if (roll <= 90)
+	{
+		// Use subway / transit system: walk to nearest station, then
+		// teleport to a random station on the same map after the ride timer.
+		GoToTransit(brain);
 	}
 	else if (LSRData::IsAvailable)
 	{
@@ -5534,6 +5568,20 @@ void ProcessPZ(PlayerBrain* brain)
 									brain->FindPlayer = GameTime + RandomInt(15000, 40000);
 									PickNextAction(brain);
 								}
+							}
+							else if (brain->OnTransit && GameTime > brain->TransitTimer)
+							{
+								// Transit ride complete: teleport ped to a random station on the same map.
+								Vector3 pedPosT = ENTITY::GET_ENTITY_COORDS(PlayZero, true);
+								bool inLCT = (pedPosT.x > 2800.0f);
+								const auto& stationsT = inLCT ? LCSubwayStations : LSSubwayStations;
+								int destIdx = LessRandomInt("TransitDest", 0, (int)stationsT.size() - 1);
+								MoveEntity(PlayZero, NewVector3(stationsT[destIdx].X, stationsT[destIdx].Y, stationsT[destIdx].Z));
+								PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(PlayZero, false);
+								brain->OnTransit    = false;
+								brain->TransitTimer = 0;
+								brain->FindPlayer   = GameTime + RandomInt(20000, 40000);
+								PickNextAction(brain);
 							}
 							else if (brain->ShopTimer > 0 && GameTime > brain->ShopTimer)
 							{
