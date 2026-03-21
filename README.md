@@ -991,7 +991,7 @@ Version 1.0
 ================================================================
 Credits
 ================================================================
-
+- Adopcalipt's Player Zero 
 - Rockstar Games
-- FedoraScrub (Tank Mech): https://www.gta5-mods.com/vehicles/tank-mech-menyoo
+- Los Santos Red made by Greskrendtregk
 - Everyone else
