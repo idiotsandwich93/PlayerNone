@@ -310,7 +310,6 @@ namespace PZClass
 		int PrefredVehicle;
 		std::string FaveVehicle;
 		bool BusDriver;
-		bool RentaCop;
 		bool TheHacker;
 		bool AirTranspport;
 		bool Friendly;
@@ -354,10 +353,6 @@ namespace PZClass
 
 		bool IsNativeModel;        // true = spawned as a gang's native ped model (skip OnlineFaces)
 
-		// Transit system
-		bool OnTransit;            // ped is in transit (walking to station or riding)
-		int  TransitTimer;         // game time when the ride completes (0 = still walking to entrance)
-		int  TransitStation;       // departure station index (-1 = not in transit)
 
 		std::string MyName;
 		std::string MyIdentity;
@@ -365,7 +360,7 @@ namespace PZClass
 
 	public:
 		PlayerBrain(std::string name, std::string id, ClothBank pedCloth, int timeOn, int level, bool inContact, bool isMobileCont, int nationality, int gunSelect, int preVehicle, std::string faveVehicle, int faveRadio)
-			: ThisPed(NULL), ThisEnemy(NULL), ThisVeh(NULL), Oppressor(NULL), XmasTree(NULL), ThisBlip(NULL), MoneyDrops(MoneyBags()), DirBlip(true), DeathSequence(0), DeathTime(0), Kills(0), Killed(0), TimeOn(timeOn), FindPlayer(0), ShopTimer(0), ScenarioTimer(0), PlaneLand(-1), OffRadar(0), FlightPath(0), Nationality(nationality), IsAnimal(false), EWO(false), YoDeeeed(false), OffRadarBool(false), Bounty(false), InCombat(false), SessionJumper(false), DropMoneyBags(false), Horny(false), Driver(false), Passenger(false), WanBeFriends(false), ApprochPlayer(true), IsPlane(false), IsHeli(false), IsInContacts(inContact), IsMobileCont(isMobileCont), SessionGreating(true), PiggyBackin(false), TimeToGo(false), SessionPilot(false), GrabVeh(false), IsSpecialPed(false), PlayerInVeh(false), HeadTag(0), BlipColour(0), Level(level), PrefredVehicle(preVehicle), FaveVehicle(faveVehicle), GunSelect(gunSelect), FaveRadio(faveRadio), EnemyPos(1.0f), BusDriver(false), RentaCop(false), TheHacker(false), AirTranspport(false), Friendly(true), Follower(false), IsCriminal(false), IsDealer(false), CrimeTimer(0), GangID(""), ZoneEconomy(0), IsWanted(false), WantedTimer(0), SchedulePhase(0), AggressionTier(0), ArmedWeaponHash(0), RobPhase(0), InteriorEntryID(-1), InsideInterior(false), ShopBrowsing(false), IsPulledOver(false), PulloverTimer(0), TrafficViolTimer(0), CopReactionTimer(0), StuckCheckTimer(0), LastStuckX(0.0f), LastStuckY(0.0f), DrugBuyTarget(NULL), DrugBuyTimer(0), IsNativeModel(false), AtTheParty(false), StayInVeh(false), RadioHeads(true), HackReaction(false), OnTransit(false), TransitTimer(0), TransitStation(-1), MyName(name), MyIdentity(id), PFMySetting(pedCloth) {}
+			: ThisPed(NULL), ThisEnemy(NULL), ThisVeh(NULL), Oppressor(NULL), XmasTree(NULL), ThisBlip(NULL), MoneyDrops(MoneyBags()), DirBlip(true), DeathSequence(0), DeathTime(0), Kills(0), Killed(0), TimeOn(timeOn), FindPlayer(0), ShopTimer(0), ScenarioTimer(0), PlaneLand(-1), OffRadar(0), FlightPath(0), Nationality(nationality), IsAnimal(false), EWO(false), YoDeeeed(false), OffRadarBool(false), Bounty(false), InCombat(false), SessionJumper(false), DropMoneyBags(false), Horny(false), Driver(false), Passenger(false), WanBeFriends(false), ApprochPlayer(true), IsPlane(false), IsHeli(false), IsInContacts(inContact), IsMobileCont(isMobileCont), SessionGreating(true), PiggyBackin(false), TimeToGo(false), SessionPilot(false), GrabVeh(false), IsSpecialPed(false), PlayerInVeh(false), HeadTag(0), BlipColour(0), Level(level), PrefredVehicle(preVehicle), FaveVehicle(faveVehicle), GunSelect(gunSelect), FaveRadio(faveRadio), EnemyPos(1.0f), BusDriver(false), TheHacker(false), AirTranspport(false), Friendly(true), Follower(false), IsCriminal(false), IsDealer(false), CrimeTimer(0), GangID(""), ZoneEconomy(0), IsWanted(false), WantedTimer(0), SchedulePhase(0), AggressionTier(0), ArmedWeaponHash(0), RobPhase(0), InteriorEntryID(-1), InsideInterior(false), ShopBrowsing(false), IsPulledOver(false), PulloverTimer(0), TrafficViolTimer(0), CopReactionTimer(0), StuckCheckTimer(0), LastStuckX(0.0f), LastStuckY(0.0f), DrugBuyTarget(NULL), DrugBuyTimer(0), IsNativeModel(false), AtTheParty(false), StayInVeh(false), RadioHeads(true), HackReaction(false), MyName(name), MyIdentity(id), PFMySetting(pedCloth) {}
 	};
 	class PhoneContact
 	{
@@ -494,6 +489,8 @@ namespace PZSys
 	float DistanceTo(Entity entity1, Vector3 postion2);
 	float DistanceTo(PZClass::Vector4 postion1, Vector3 postion2);
 	float DistanceTo(PZClass::Vector4 postion1, PZClass::Vector4 postion2);
+	float DistanceToSq(Vector3 postion1, Vector3 postion2);
+	float DistanceToSq(Entity entity1, Vector3 postion2);
 
 	Vector3 NewVector3(float X, float Y, float Z);
 	Vector3 NewVector3(PZClass::Vector4 pos4);
@@ -21266,48 +21263,6 @@ namespace PZData
 		PZClass::Vector4(-176.8f, -1431.6f, 31.3f, -6.9f),
 		PZClass::Vector4(186.6f, -1811.6f, 29.0f, 4.8f),
 		PZClass::Vector4(191.4f, -1815.0f, 28.8f, 326.5f),
-	};
-
-	// ---------------------------------------------------------------------------
-	// Subway / transit station positions sourced from Locations.xml (LS) and
-	// Locations_LPP.xml (LC).  Used by the transit routing system so on-foot
-	// peds occasionally walk to a station, "ride" to another, and re-emerge.
-	// ---------------------------------------------------------------------------
-
-	inline const std::vector<PZClass::Vector4> LSSubwayStations = {
-		PZClass::Vector4(-245.8754f,  -335.3599f, 29.97557f, 0.0f),  // Burton
-		PZClass::Vector4(-490.9833f,  -697.8607f, 33.24188f, 0.0f),  // Little Seoul
-		PZClass::Vector4(-1368.768f,  -528.9166f, 30.30007f, 0.0f),  // Del Perro
-		PZClass::Vector4( -800.5429f, -101.6647f, 37.56856f, 0.0f),  // Portola Drive
-		PZClass::Vector4(-1040.5f,   -2742.292f,  13.92607f, 0.0f),  // LSIA Terminal 4
-		PZClass::Vector4( -946.489f, -2329.504f,   6.763008f, 0.0f), // LSIA Parking
-	};
-
-	inline const std::vector<PZClass::Vector4> LCSubwayStations = {
-		PZClass::Vector4(6194.12f,  -3800.076f, 14.89172f, 0.0f),  // Hove Beach Stop
-		PZClass::Vector4(5258.134f, -3982.534f,  4.957565f, 0.0f), // Castle Garden
-		PZClass::Vector4(5075.314f, -3757.491f, 14.74453f, 0.0f),  // City Hall
-		PZClass::Vector4(5152.494f, -3276.569f, 14.76219f, 0.0f),  // Easton Station
-		PZClass::Vector4(5152.522f, -2620.443f, 14.65688f, 0.0f),  // East Park
-		PZClass::Vector4(5302.479f, -3559.203f, 14.76205f, 0.0f),  // Emerald Station
-		PZClass::Vector4(4839.358f, -3593.503f,  4.872783f, 0.0f), // Feldspar Station
-		PZClass::Vector4(4810.763f, -2886.293f, 14.75316f, 0.0f),  // Frankfort Avenue
-		PZClass::Vector4(4804.69f,  -1820.69f,  12.41786f, 0.0f),  // Frankfort High
-		PZClass::Vector4(4781.906f, -1829.423f, 12.24839f, 0.0f),  // Frankfort Low
-		PZClass::Vector4(4638.973f, -3247.353f,  4.696638f, 0.0f), // Hematite Station
-		PZClass::Vector4(5284.499f, -2734.028f, 13.22478f, 0.0f),  // Manganese East
-		PZClass::Vector4(4726.74f,  -2727.668f,  9.851699f, 0.0f), // Manganese West
-		PZClass::Vector4(5055.046f, -2102.401f, 14.76669f, 0.0f),  // North Park
-		PZClass::Vector4(5323.999f, -2343.578f, 14.71103f, 0.0f),  // Quartz St. East
-		PZClass::Vector4(4645.076f, -2315.478f,  9.940755f, 0.0f), // Quartz St. West
-		PZClass::Vector4(4932.183f, -3400.574f, 14.44443f, 0.0f),  // Suffolk Station
-		PZClass::Vector4(4702.734f, -1922.467f, 17.47117f, 0.0f),  // Vauxite Station
-		PZClass::Vector4(5118.666f, -1844.507f, 20.41463f, 0.0f),  // Vespucci Circus
-		PZClass::Vector4(4837.873f, -2578.595f, 14.68624f, 0.0f),  // West Park
-		PZClass::Vector4(6576.017f, -2850.9f,   22.94693f, 0.0f),  // Huntington St
-		PZClass::Vector4(6836.851f, -2842.665f, 31.21511f, 0.0f),  // Lynch St
-		PZClass::Vector4(5595.888f, -1596.771f, 16.24634f, 0.0f),  // San Quentin Ave
-		PZClass::Vector4(5938.165f, -1807.366f, 14.24811f, 0.0f),  // Winmill St
 	};
 
 }

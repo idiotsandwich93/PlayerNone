@@ -67,6 +67,47 @@ Change Log
 ---- Fork Changes by idiotsandwich93 ----
 
 
+-- v58: Utility Belt Fix + Missing Arms Fix + Optimization Prep --
+
+- Utility belts (component 9) now correctly zeroed for ALL peds, not just
+  Friendly/Follower peds. Previously hostile and gang peds could still spawn
+  with a tactical vest or utility belt visible.
+- Fixed a second utility belt leak: gang peds that are re-dressed via
+  SET_PED_DEFAULT_COMPONENT_VARIATION + OnlineDress had comp9 reset to the
+  model default. An explicit comp9=0 call is now added after every gang
+  re-dress to close this path.
+- Fixed missing arms on some outfit combinations. OnlineDress now re-applies
+  component 3 (torso/arms) after component 11 (jacket) so GTA V selects the
+  correct arm mesh for the active jacket — applying comp3 before comp11 in
+  the loop caused invisible arms on certain outfit pairings.
+- FIB suit outfits removed from the Outfits folder rotation so FBI-style
+  badge jackets no longer appear on any ped.
+- Added DistanceToSq() helpers (squared-distance variants) in PZClass for
+  use in hot comparison loops, avoiding unnecessary sqrt calls.
+
+
+-- v57: Remove RentaCop Ped Type --
+
+- Removed the RentaCop special ped, which had a ~5% chance of spawning a
+  friendly ped in an LSPD uniform driving a police5 vehicle. Police uniforms,
+  accessories, and vehicles are not part of the intended mod experience.
+- Removed RentoCop global bool, spawn block in PlayerZerosAI, cleanup block
+  in PedCleaning, and the RentaCop field from PlayerBrain.
+
+
+-- v56: Remove Transit System --
+
+- Removed the subway/transit system added in v52-v55. On-foot peds could not
+  reliably navigate to underground station platforms via GTA V's pathfinder;
+  they would walk to the entrance and stop. The feature was not achievable
+  without map-level pathfinding hooks not available via Script Hook V.
+- Removed: GoToTransit(), Phase 1 and Phase 2 transit handlers in ProcessPZ,
+  LSSubwayStations and LCSubwayStations arrays, and the OnTransit,
+  TransitTimer, and TransitStation fields from PlayerBrain.
+- PickNextAction roll distribution restored to pre-transit behavior:
+  1-50 wander, 51-70 shop, 71-80 scenario, 81-100 LSR hotspot.
+
+
 -- v55: Transit — Fix ped not boarding at station entrance --
 
 - Moved transit Phase 1 (proximity/hide) and Phase 2 (ride timer/teleport)

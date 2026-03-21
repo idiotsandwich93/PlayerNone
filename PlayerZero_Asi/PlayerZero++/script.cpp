@@ -22,7 +22,6 @@ using namespace PZData;
 
 bool PrivateJet = false;
 bool BusDriver = false;
-bool RentoCop = false;
 
 bool PlayDead = false;
 bool ClosedSession = false;
@@ -1049,12 +1048,6 @@ void ResetPlayer(PlayerBrain* brain, bool del)
 		brain->TimeOn = 0;
 	}
 	
-	if (brain->RentaCop)
-	{
-		RentoCop = false;
-		brain->RentaCop = false;
-		brain->TimeOn = 0;
-	}
 
 	EraseBlip(&brain->ThisBlip);
 
@@ -1212,7 +1205,6 @@ void LaggOut(bool keepFriend)
 {
 	PrivateJet = false;
 	BusDriver = false;
-	RentoCop = false;
 
 	if (!keepFriend)
 		SessionCleaning = true;
@@ -2084,40 +2076,11 @@ bool DoStoreRobbery(PlayerBrain* brain)
 	return true;
 }
 
-void GoToTransit(PlayerBrain* brain)
-{
-	Ped peddy = brain->ThisPed;
-	Vector3 pedPos = ENTITY::GET_ENTITY_COORDS(peddy, true);
-	bool inLC = (pedPos.x > 2800.0f);
-
-	const auto& stations = inLC ? LCSubwayStations : LSSubwayStations;
-
-	// Pick nearest station as the departure point.
-	float bestDist = 1e12f;
-	int   bestIdx  = 0;
-	for (int i = 0; i < (int)stations.size(); i++)
-	{
-		float dx = stations[i].X - pedPos.x;
-		float dy = stations[i].Y - pedPos.y;
-		float dSq = dx * dx + dy * dy;
-		if (dSq < bestDist) { bestDist = dSq; bestIdx = i; }
-	}
-
-	WalkHere(peddy, NewVector3(stations[bestIdx].X, stations[bestIdx].Y, stations[bestIdx].Z));
-	PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(peddy, true);
-
-	// Timer starts when the ped actually reaches the entrance (checked in ProcessPZ).
-	brain->OnTransit      = true;
-	brain->TransitTimer   = 0;           // 0 = still walking, not yet boarded
-	brain->TransitStation = bestIdx;
-	brain->FindPlayer     = InGameTime() + 300000; // 5-min ceiling, tightened on board
-}
-
 void PickNextAction(PlayerBrain* brain)
 {
 	Ped peddy = brain->ThisPed;
 	brain->ScenarioTimer = 0;
-	brain->ShopTimer = 0;
+	brain->ShopTimer     = 0;
 
 	// Crime opportunity: only for criminal peds whose cooldown has expired
 	if (brain->IsCriminal && brain->CrimeTimer < InGameTime())
@@ -2214,12 +2177,6 @@ void PickNextAction(PlayerBrain* brain)
 	{
 		// Brief standing animation (smoking, leaning, phone, etc.)
 		DoAmbientScenario(brain);
-	}
-	else if (roll <= 90)
-	{
-		// Use subway / transit system: walk to nearest station, then
-		// teleport to a random station on the same map after the ride timer.
-		GoToTransit(brain);
 	}
 	else if (LSRData::IsAvailable)
 	{
@@ -3117,6 +3074,12 @@ void OnlineDress(Ped peddy, ClothX* clothClass)
 		if (clothClass->ExtraA[i] >= 0)
 			PED::SET_PED_PROP_INDEX(peddy, i, clothClass->ExtraA[i], clothClass->ExtraB[i], false);
 	}
+
+	// Re-apply torso (component 3) AFTER jacket (component 11) so GTA picks the correct arm mesh.
+	// Freemode models determine arm drawable from the active jacket; setting component 3 before
+	// component 11 in the loop above can leave arms invisible on some outfit combos.
+	if ((int)clothClass->ClothA.size() > 3 && clothClass->ClothA[3] >= 0)
+		PED::SET_PED_COMPONENT_VARIATION(peddy, 3, clothClass->ClothA[3], clothClass->ClothB[3], 2);
 }
 void OnlineFaces(Ped peddy, ClothBank* clothBankClass)
 {
@@ -3380,17 +3343,12 @@ Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 			{
 				OnlineFaces(ThisPed, &brain->PFMySetting);
 
-				// Civilians (friendly/follower) must not wear masks, utility belts, or face paint.
-				//   Component 1  = balaclava / face mask
-				//   Component 5  = bags / hip accessories (holsters, belt bags, etc.)
-				//   Component 9  = body armor / utility belt / tactical vest
-				//   Overlay  4   = makeup / face paint (disabled on males only)
-				// Hostile / gang peds keep all of these.
+				// No ped ever wears a utility belt / tactical vest. Friendly peds also get no mask or hip accessories.
+				PED::SET_PED_COMPONENT_VARIATION(ThisPed, 9, 0, 0, 2); // no utility belt / vest (all peds)
 				if (brain->Friendly || brain->Follower)
 				{
 					PED::SET_PED_COMPONENT_VARIATION(ThisPed, 1, 0, 0, 2); // no mask
 					PED::SET_PED_COMPONENT_VARIATION(ThisPed, 5, 0, 0, 2); // no bags / hip accessories
-					PED::SET_PED_COMPONENT_VARIATION(ThisPed, 9, 0, 0, 2); // no utility belt / vest
 					if (brain->PFMySetting.Male)
 						PED::SET_PED_HEAD_OVERLAY(ThisPed, 4, 255, 0.0f);  // no face paint on civilian males
 				}
@@ -3542,6 +3500,7 @@ Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 							// Restore hair after reset+redress — outfit files do not define component 2 (hair).
 							PED::SET_PED_COMPONENT_VARIATION(ThisPed, 2, brain->PFMySetting.MyHair.Comp, brain->PFMySetting.MyHair.Text, 2);
 							PED::_SET_PED_HAIR_COLOR(ThisPed, brain->PFMySetting.HairColour, brain->PFMySetting.HairStreaks);
+							PED::SET_PED_COMPONENT_VARIATION(ThisPed, 9, 0, 0, 2); // no utility belt after gang redress
 						}
 
 						// Friendly / civilian peds never commit crimes and are never armed.
@@ -4452,24 +4411,6 @@ void CreatePlayer()
 					newBrain.PrefredVehicle = 1;//Veh
 			}
 
-			if (!RentoCop && LessRandomInt("RentoCop", 1, 20) < 2)
-			{
-				RentoCop = true;
-				newBrain.Friendly = true;
-				newBrain.IsSpecialPed = true;
-				newBrain.IsPlane = false;
-				newBrain.IsHeli = false;
-				newBrain.BlipColour = 0;
-				if (newBrain.PFMySetting.Male)
-					newBrain.PFMySetting.Cothing = ClothX("Cop", { 0, 0, -1, 0, 35, 0, 25, 0, 58, 0, 0, 55 }, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, { -1, -1, -1, -1, -1 }, { -1, -1, -1, -1, -1 });
-				else
-					newBrain.PFMySetting.Cothing = ClothX("Cop", { 0, 0, -1, 14, 34, 0, 25, 0, 35, 0, 0, 48 }, { 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 }, { -1, -1, -1, -1, -1 }, { -1, -1, -1, -1, -1 });
-				newBrain.PrefredVehicle = 1;
-				newBrain.FaveVehicle = "police5";
-				newBrain.GunSelect = 15;
-				newBrain.RentaCop = true;
-				CanFill = false;
-			}
 		}
 		PedList.push_back(newBrain);
 		newBrain.ThisVeh = SpawnVehicle(&PedList[(int)PedList.size() - 1], true, true);
@@ -4911,9 +4852,8 @@ void ProcessPZ(PlayerBrain* brain)
 							ENTITY::SET_ENTITY_ALPHA(brain->ThisVeh, 120, false);
 					}
 				}
-				else if (!brain->OnTransit || brain->TransitTimer == 0)
+				else
 				{
-					// Only restore alpha when ped is not hidden on the subway.
 					if (ENTITY::GET_ENTITY_ALPHA(brain->ThisPed) != 255)
 						ENTITY::SET_ENTITY_ALPHA(brain->ThisPed, 255, false);
 
@@ -4928,41 +4868,6 @@ void ProcessPZ(PlayerBrain* brain)
 				{
 					GetOutVehicle(PlayZero);
 					PedCleaning(brain, PZTranslate[29], true);
-				}
-				// Transit checks run before all other AI so no nested condition can block them.
-				else if (brain->OnTransit && brain->TransitTimer == 0)
-				{
-					// Phase 1: ped walking to station entrance — hide when close enough.
-					bool inLCT = (PedPos.x > 2800.0f);
-					const auto& stationsT = inLCT ? LCSubwayStations : LSSubwayStations;
-					int depIdx = brain->TransitStation;
-					if (depIdx >= 0 && depIdx < (int)stationsT.size())
-					{
-						float dx = stationsT[depIdx].X - PedPos.x;
-						float dy = stationsT[depIdx].Y - PedPos.y;
-						if (dx * dx + dy * dy < 15.0f * 15.0f)
-						{
-							ENTITY::SET_ENTITY_VISIBLE(PlayZero, false, false);
-							TASK::CLEAR_PED_TASKS(PlayZero);
-							brain->TransitTimer = GameTime + RandomInt(45000, 120000);
-							brain->FindPlayer   = brain->TransitTimer + 5000;
-						}
-					}
-				}
-				else if (brain->OnTransit && brain->TransitTimer > 0 && GameTime > brain->TransitTimer)
-				{
-					// Phase 2: ride complete — teleport to a random station and show ped.
-					bool inLCT = (PedPos.x > 2800.0f);
-					const auto& stationsT = inLCT ? LCSubwayStations : LSSubwayStations;
-					int destIdx = LessRandomInt("TransitDest", 0, (int)stationsT.size() - 1);
-					MoveEntity(PlayZero, NewVector3(stationsT[destIdx].X, stationsT[destIdx].Y, stationsT[destIdx].Z));
-					ENTITY::SET_ENTITY_VISIBLE(PlayZero, true, false);
-					PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(PlayZero, false);
-					brain->OnTransit      = false;
-					brain->TransitTimer   = 0;
-					brain->TransitStation = -1;
-					brain->FindPlayer     = GameTime + RandomInt(20000, 40000);
-					PickNextAction(brain);
 				}
 				else if (brain->IsSpecialPed)
 				{
@@ -5086,79 +4991,6 @@ void ProcessPZ(PlayerBrain* brain)
 							}
 							else
 								FlyPlane(PlayZero, brain->ThisVeh, PlaneFlightPath[brain->FlightPath], NULL, false, brain->PrefredVehicle);
-						}
-					}
-					else if (brain->RentaCop)
-					{
-						if (brain->ThisVeh == NULL || ENTITY::IS_ENTITY_DEAD(brain->ThisVeh))
-						{
-							EasyWayOut(PlayZero);
-							brain->Driver = false;
-							brain->TimeOn = 0;
-						}
-						else
-						{
-
-							if (brain->ThisEnemy == ThePlayer)
-							{
-								Vehicle PlayVeh = GetPlayersVehicle();
-								if (PlayVeh != NULL)
-								{
-									if (VEHICLE::IS_VEHICLE_STOPPED(PlayVeh))
-									{
-										if (DistanceTo(PlayZero, ThePlayer) < 30.0f)
-										{
-											AI::CLEAR_PED_TASKS(PlayZero);
-											GetOutVehicle(PlayZero);
-											AI::TASK_ARREST_PED(PlayZero, ThePlayer);
-										}
-									}
-								}
-								else
-								{
-									brain->ThisEnemy = NULL;
-									AI::CLEAR_PED_TASKS(PlayZero);
-								}
-							}
-							else if (brain->ThisEnemy != NULL)
-							{
-								if (!(bool)ENTITY::DOES_ENTITY_EXIST(brain->ThisEnemy))
-									brain->ThisEnemy = NULL;
-								else if ((bool)ENTITY::IS_ENTITY_DEAD(brain->ThisEnemy))
-									brain->ThisEnemy = NULL;
-							}
-							else
-							{
-								if (!(bool)PED::IS_PED_IN_ANY_VEHICLE(PlayZero, 0))
-								{
-									if (brain->FindPlayer < GameTime)
-									{
-										brain->FindPlayer = GameTime + 5000;
-										GetInVehicle(PlayZero, brain->ThisVeh, -1);
-									}
-								}
-								else if (brain->FindPlayer < GameTime)
-								{
-									brain->FindPlayer = GameTime + 5000;
-									if ((bool)PED::IS_PED_IN_ANY_VEHICLE(ThePlayer, 0))
-									{
-										brain->ThisEnemy = ThePlayer;
-										AI::TASK_VEHICLE_CHASE(PlayZero, ThePlayer);
-										VEHICLE::SET_VEHICLE_SIREN(brain->ThisVeh, true);
-									}
-									else
-									{
-										brain->ThisEnemy = FindAFight(brain);
-										if (brain->ThisEnemy == NULL)
-											VEHICLE::SET_VEHICLE_SIREN(brain->ThisVeh, false);
-										else
-										{
-											VEHICLE::SET_VEHICLE_SIREN(brain->ThisVeh, true);
-											PickFight(PlayZero, brain->ThisVeh, brain->ThisEnemy, brain->PrefredVehicle);
-										}
-									}
-								}
-							}
 						}
 					}
 				}
@@ -6232,14 +6064,15 @@ void Pz_Settings();
 
 void PassiveProg()
 {
-	//if (PlayerNoZero != PLAYER::PLAYER_PED_ID())
-	//{
-	//	PlayerNoZero = PLAYER::PLAYER_PED_ID();
-	//	ENTITY::SET_ENTITY_ONLY_DAMAGED_BY_PLAYER((Entity)PLAYER::PLAYER_PED_ID(), true);
-	//}
+	// Throttle: SET_ENTITY_NO_COLLISION_ENTITY is persistent — no need to re-apply every tick.
+	static int passiveNextRun = 0;
+	int nowT = InGameTime();
+	if (nowT < passiveNextRun) return;
+	passiveNextRun = nowT + 3000;
+
+	Entity PlayVeh = GetPlayersVehicle(); // hoist outside loop — same value for every ped
 	for (int i = 0; i < (int)PedList.size(); i++)
 	{
-		Entity PlayVeh = GetPlayersVehicle();
 		if (PlayVeh != NULL)
 		{
 			if (PedList[i].Driver)

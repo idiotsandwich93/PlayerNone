@@ -536,6 +536,20 @@ namespace PZSys
 		double Num3 = postion2.z - postion1.z;
 		return (float)sqrt(Num * Num + Num2 * Num2 + Num3 * Num3);
 	}
+	// Squared distance — use for threshold comparisons only (avoids sqrt).
+	// e.g. DistanceToSq(a, b) < 80.0f * 80.0f  instead of  DistanceTo(a, b) < 80.0f
+	float DistanceToSq(Vector3 postion1, Vector3 postion2)
+	{
+		double Num = postion2.x - postion1.x;
+		double Num2 = postion2.y - postion1.y;
+		double Num3 = postion2.z - postion1.z;
+		return (float)(Num * Num + Num2 * Num2 + Num3 * Num3);
+	}
+	float DistanceToSq(Entity entity1, Vector3 postion2)
+	{
+		Vector3 Postion1 = ENTITY::GET_ENTITY_COORDS(entity1, false);
+		return DistanceToSq(Postion1, postion2);
+	}
 	float DistanceTo(Entity entity1, Entity entity2)
 	{
 		Vector3 Postion1 = ENTITY::GET_ENTITY_COORDS(entity1, false);
@@ -918,7 +932,7 @@ namespace PZSys
 			Vector3 pPos = PlayerPosi();
 			for (int i = 0; i < (int)PedList.size(); i++)
 				if (!PedList[i].Driver && !PedList[i].Passenger &&
-					DistanceTo(PedList[i].ThisPed, pPos) < 80.0f)
+					DistanceToSq(PedList[i].ThisPed, pPos) < 80.0f * 80.0f)
 					nearCount++;
 
 			if (nearCount < 4)
@@ -952,7 +966,7 @@ namespace PZSys
 			Vector3 pPos = PlayerPosi();
 			for (int i = 0; i < (int)PedList.size(); i++)
 				if (!PedList[i].Driver && !PedList[i].Passenger &&
-					DistanceTo(PedList[i].ThisPed, pPos) < 80.0f)
+					DistanceToSq(PedList[i].ThisPed, pPos) < 80.0f * 80.0f)
 					nearCount++;
 
 			if (nearCount < 4)
@@ -993,7 +1007,7 @@ namespace PZSys
 			for (int i = 0; i < (int)PedList.size(); i++)
 			{
 				if (!PedList[i].Driver && !PedList[i].Passenger &&
-					DistanceTo(PedList[i].ThisPed, pPos) < 80.0f)
+					DistanceToSq(PedList[i].ThisPed, pPos) < 80.0f * 80.0f)
 				{
 					nearCount++;
 				}
@@ -1014,7 +1028,7 @@ namespace PZSys
 					Vector3 cPos = NewVector3(locList[candidate].X, locList[candidate].Y, locList[candidate].Z);
 					int nearby = 0;
 					for (auto& p : PedList)
-						if (!p.Driver && !p.Passenger && DistanceTo(p.ThisPed, cPos) < 80.0f)
+						if (!p.Driver && !p.Passenger && DistanceToSq(p.ThisPed, cPos) < 80.0f * 80.0f)
 							nearby++;
 					if (nearby < 3)
 					{
