@@ -1,58 +1,142 @@
 PlayerNone
 
-Player zero brings all the toxic waste from online sessions and dumps it into story mode...
+Story mode was never meant to feel empty. PlayerNone fixes that.
 
+Originally a fork of the PlayerZero mod, PlayerNone has been rebuilt from the ground up into
+something far beyond its origins — a full living session simulation that populates your story
+mode world with AI characters modeled after GTA Online players. Not NPCs. Players. Named,
+blipped, outfitted freemode characters with their own routines, rivalries, and agendas.
+
+================================================================
+What it does
+================================================================
+
+PlayerNone spawns a configurable session of AI "players" around you at all times. They drive,
+walk, hang out at hotspots, browse shops, do ambient activities, and react to the world around
+them — just like a real online lobby, minus the modders. Some will be friendly and want to team
+up. Others will be hostile and come looking for you. Most are just living their lives.
+
+Every character is generated with a randomized freemode appearance — civilian clothing, no police
+gear, no masks — and assigned a name that appears on your map as a blip. They feel like real
+session members because they're built to behave like them.
+
+================================================================
 Features
-- Collect bountys.
-- Team up with playerz.
-- Spawn kill playerz.
-- Be spawn killed by playerz.
-- Ride in playerz vehicles.
+================================================================
 
-There is a settings ini where you can set max players, agression, wait times and play duration.
+- Dynamic session population — 5 to 50 AI players spawning and despawning naturally around you,
+  configurable in the settings menu
+- Dual-map support — fully functional in both Los Santos and Liberty City (requires LCPP)
+- Behavioral AI — peds wander, drive, shop, run scenarios, hang out at LSR hotspots, and make
+  decisions based on their personality type
+- Friendly and hostile players — some want to ride with you, others want to kill you; aggression
+  is configurable
+- Gang system — criminal peds with gang affiliations, drug dealing, carjacking, and
+  territory-aware behavior
+- Economy layer — money drops, bounties, drug transactions between peds
+- Vehicle AI — players drive on roads, pilot helicopters, fly planes; all map-aware with proper
+  road snapping per region
+- Contact system — AI players can appear in your in-game phone as contacts
+- LSR integration — full compatibility with LosSantosRED; AI players pass LSR's converse check
+  and receive dialogue menus like ambient civilians
+- LSPDFR compatible — works alongside LSPDFR without conflict
+- LSR Online session display — top-left corner shows your session as "LSR Online" with a live
+  player count
+- Custom red UI — distinct in-game menu with red color scheme
 
-I have altered how outfits are generated if you wish to use custom outfits then you can with the wardrobe from NSPM yacht.
+================================================================
+For the LSR Community
+================================================================
+
+LSR makes the world react. PlayerNone makes it feel populated.
+
+If you've spent time in LosSantosRED, you know what it does to story mode — the economy breathes,
+gangs have territory, civilians have lives. What's been missing is the chaos layer. The feeling
+that you're not alone in the session. That there are other players out there, with their own
+business, their own beef, and their own relationship to the world LSR built.
+
+That's what PlayerNone adds.
+
+-- The concept --
+
+PlayerNone spawns a configurable lobby of AI freemode characters around you — named, blipped, and
+outfitted like GTA Online players — and drops them into your LSR world as full participants. Not
+ambient pedestrians. Not props. Characters that move through the same systems LSR already runs,
+respond to the same economy, and populate the same streets your gang controls.
+
+Your session counter in the top left stops saying "GTA Online." It says LSR Online. Because that's
+what this is.
+
+-- How it integrates with LSR --
+
+Every AI player spawned by PlayerNone is recognized by LSR as a valid conversable character. They
+pass LSR's CanConverse check automatically, which means your full LSR dialogue system works on them
+— the same menus, the same interactions you'd get with LSR's own ambient population. They aren't
+invisible to LSR. They're part of it.
+
+On the criminal side, PlayerNone reads LSR's gang configuration directly. The DrugDealerPercentage
+values from your Gangs.xml determine how many peds in a given area are flagged as dealers or
+criminals. Those peds will actively seek out drug transactions — including buying from LSR gang
+members — making your gang territories feel genuinely active rather than decorative. Criminal peds
+carjack, fight, and operate within LSR's existing gang zone logic. They belong to the same world.
+
+Friendly civilian peds fill the other half of the session — wandering, shopping, running scenarios,
+hanging out at LSR hotspots. They blend into LSR's ambient population seamlessly because they're
+built from the same freemode character base LSR uses, with randomized civilian outfits.
+
+When LSR is detected, PlayerNone automatically switches into enhanced mode, deepening all of these
+integrations. If LSR isn't present, it runs standalone — same behavior, without the LSR-specific
+hooks.
+
+-- What it adds to your LSR experience --
+
+- Your streets feel like a public session — named players on the map, freemode outfits, blips,
+  real activity
+- Gang territories have actual population pressure — criminal peds operating within your LSR
+  economy
+- Drug dealing isn't one-sided — AI buyers approach your LSR gang dealers and complete transactions
+- Civilian peds respond to and interact with LSR's world naturally, not as afterthoughts
+- Fully configurable session size (5-50), aggression, and session type to match whatever kind of
+  LSR server environment you're running
+- Liberty City support for LCPP users — same system, same LSR integration, different map
+
+In short: LSR gives the world rules. PlayerNone gives it people. Together it's the closest story
+mode has ever felt to a real modded online session — except the server never crashes, the modders
+are gone, and everything actually works.
 
 ================================================================
 Installation
 ================================================================
 
-Place the scripts folder in the zip file in your Grand Theft Auto V folder.
+Place the PlayerNone folder into your Grand Theft Auto V / scripts folder.
+Place PlayerNone.asi into your Grand Theft Auto V root folder.
 
 ================================================================
-Required Files
--- Always check these are up-to-date as they do change. --
+Requirements
 ================================================================
 
-The PlayerNoneSettings.exe requires the PriceDown Font.
-https://fontmeme.com/fonts/pricedown-font/
-
-All the free DLC's installed...
 - Microsoft .NET Framework 4.8
   https://dotnet.microsoft.com/download/dotnet-framework/net48
 - Visual C++ Redistributable for Visual Studio 2019
   https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads
 - Script Hook V
   http://www.dev-c.com/gtav/scripthookv/
-- Community Script Hook V .NET v2.10.14 or higher
-  https://github.com/crosire/scripthookvdotnet
+- Community Script Hook V .NET Nightly
+  https://github.com/scripthookvdotnet/scripthookvdotnet-nightly/releases
 - NativeUI
   https://github.com/Guad/NativeUI/releases
 - iFruitAddon2
   https://github.com/Bob74/iFruitAddon2/releases
 
-This mod uses all the vehicles available, these require an up-to-date trainer so they don't despawn.
-Any of these will work:
-- Simple Trainer: https://www.gta5-mods.com/scripts/simple-trainer-for-gtav
-- Menyoo: https://github.com/MAFINS/MenyooSP
-- Enhanced Native Trainer: https://www.gta5-mods.com/scripts/enhanced-native-trainer-zemanez-and-others
-- Add-On Vehicle Spawner: https://www.gta5-mods.com/scripts/add-on-vehicle-spawner
+Optional:
+- LosSantosRED (for enhanced mode)
+- LCPP (for Liberty City support)
 
 ================================================================
 Known Bugs and Compatibility Issues
 ================================================================
 
-- Spawn kills (fix by lowering aggression).
+- Spawn kills (fix by lowering aggression in settings).
 
 ================================================================
 Future Updates
