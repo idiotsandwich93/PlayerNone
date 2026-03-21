@@ -594,11 +594,11 @@ namespace PZData
 		"left",
 		"has disappeared",
 		"To open menu press ",
-		"Player Zero",
+		"PlayerNone",
 		"Manage playerz settings.",
 		"Contact Menu",
 		"Add Remove or call up your contacts.",
-		"Player Zero Settings",
+		"PlayerNone Settings",
 		"Change the game settings.",
 		"Clear Session",
 		"Clear all playerz from the current session.",
@@ -606,7 +606,7 @@ namespace PZData
 		"Clear all non-friends playerz from the current session.",
 		"Menu Orientation",
 		"Swap the screen side that the menu displays on.",
-		"Player Zero",
+		"PlayerNone",
 		"Players",
 		"View players in session.",
 		"Player Actions",
@@ -6667,7 +6667,7 @@ namespace PZData
 	inline std::vector<PZClass::PhoneContact> PhoneContacts;
 
 	inline const std::string DirectMobileNet = PZSys::GetDir() + "/MobileNetwork";
-	inline const std::string DirectMain = PZSys::GetDir() + "/PlayerZero";
+	inline const std::string DirectMain = PZSys::GetDir() + "/PlayerNone";
 	inline const std::string DirectRandNum = DirectMain + "/Randoms";
 	inline const std::string DirectContacts = DirectMain + "/Contacts";
 	inline const std::string DirectVehicles = DirectMain + "/Vehicles";

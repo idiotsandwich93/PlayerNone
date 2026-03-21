@@ -1,4 +1,4 @@
-Player Zero++
+PlayerNone
 
 Player zero brings all the toxic waste from online sessions and dumps it into story mode...
 
@@ -24,7 +24,7 @@ Required Files
 -- Always check these are up-to-date as they do change. --
 ================================================================
 
-The PlayerZeroSettings.exe requires the PriceDown Font.
+The PlayerNoneSettings.exe requires the PriceDown Font.
 https://fontmeme.com/fonts/pricedown-font/
 
 All the free DLC's installed...
@@ -65,6 +65,20 @@ Change Log
 ================================================================
 
 ---- Fork Changes by idiotsandwich93 ----
+
+
+-- v59: Rename to PlayerNone --
+
+- Mod renamed from PlayerZero++ to PlayerNone.
+- ASI output renamed from PlayerZero++.asi to PlayerNone.asi.
+- Scripts data folder path updated from PlayerZero/ to PlayerNone/ — rename
+  your existing scripts/PlayerZero/ folder to scripts/PlayerNone/ on install.
+- In-game menu title and settings label updated to reflect new name.
+- Project files (.sln, .vcxproj) renamed and updated accordingly.
+- Also includes spawn-node snapping for near-player ped spawns in LS/LC
+  (prevents peds landing in water or off-terrain) and improved arm mesh
+  fallback in OnlineDress (comp3 always applied after comp11, defaults to
+  drawable 0 when outfit has no explicit torso value).
 
 
 -- v58: Utility Belt Fix + Missing Arms Fix + Optimization Prep --
@@ -635,9 +649,9 @@ Change Log
 -- v20: Removed Custom Drug Buy Prompt --
 
 - Removed the custom [E] Buy ($50) drug purchase prompt added in v19. Drug buying and selling
-  for PlayerZero++ NPCs is now handled entirely by Los Santos RED's built-in interaction system.
+  for PlayerNone NPCs is now handled entirely by Los Santos RED's built-in interaction system.
   Enable TaskMissionPeds in LSR's Settings.xml to allow LSR to assign zone-based drug menus
-  to PlayerZero++ peds the same way it does for ambient civilians.
+  to PlayerNone peds the same way it does for ambient civilians.
 
 
 -- v19: NPC Crime Behaviors + LSR Drug Interaction Groundwork --
@@ -678,7 +692,7 @@ Change Log
 
 - Fixed the root cause of NPCs showing as "Talk to unknown" with no dialogue options in Los
   Santos RED. Changed AllowMissionPedsToInteract to true in the LSR Settings.xml so that
-  PlayerZero++ NPCs pass LSR's CanConverse check and receive full dialogue menus.
+  PlayerNone NPCs pass LSR's CanConverse check and receive full dialogue menus.
 - Added zone-aware gang group assignment. Hostile NPCs that spawn inside gang territory zones
   are now added to the matching GTA V ambient gang relationship group (AMBIENT_GANG_BALLAS,
   AMBIENT_GANG_LOST, AMBIENT_GANG_MARABUNTE, etc.) instead of the generic attack group.
@@ -739,7 +753,7 @@ Change Log
 - Removed the Halloween Arena War outfit — NPCs no longer spawn in space-horror costumes during
   Halloween and instead use the regular online outfit system.
 - Fixed Los Santos RED compatibility — changed AllowMissionPedsToInteract to true in the LSR
-  settings file so PlayerZero++ NPCs can be targeted and interacted with by the LSR dialogue system.
+  settings file so PlayerNone NPCs can be targeted and interacted with by the LSR dialogue system.
 
 
 -- v9 / v10: Shop AFK Fix + T-Pose Fix --
@@ -829,7 +843,7 @@ Version 1.8
 
 Version 1.7
 - Added an invite friendly player on foot option.
-- Added PlayerZeroSettings.exe to setup PZSet.ini.
+- Added PlayerNoneSettings.exe to setup PZSet.ini.
 - Attempted to fix the peds falling through the map fault.
 
 Version 1.6

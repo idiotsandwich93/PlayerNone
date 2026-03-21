@@ -1016,6 +1016,9 @@ namespace PZSys
 			if (nearCount < 4)
 			{
 				Pos = InAreaOf(PlayerPosi(), 30.0f, 60.0f);
+				// Snap to a valid node so peds never spawn in water or off-terrain.
+				const auto& locList = isLC ? LCPedLocSpawns : LSPedLocSpawns;
+				NearestToo(&Pos, locList, LastDropPed, 10.0f);
 			}
 			else
 			{
@@ -2191,7 +2194,7 @@ namespace PZSys
 
 	void FindAddCars()
 	{
-		const std::string sVehList01 = GetDir() + "/PlayerZero/Vehicles/StandardRoadVehicles.ini";
+		const std::string sVehList01 = GetDir() + "/PlayerNone/Vehicles/StandardRoadVehicles.ini";
 		PreVeh_01 = ReadFile(sVehList01);
 		if (PreVeh_01.size() == 0)
 		{
@@ -2735,7 +2738,7 @@ namespace PZSys
 			WriteFile(sVehList01, PreVeh_01);
 		}
 
-		const std::string sVehList02 = GetDir() + "/PlayerZero/Vehicles/HeliNoWeapons.ini";
+		const std::string sVehList02 = GetDir() + "/PlayerNone/Vehicles/HeliNoWeapons.ini";
 		PreVeh_02 = ReadFile(sVehList02);
 		if (PreVeh_02.size() == 0)
 		{
@@ -2759,7 +2762,7 @@ namespace PZSys
 			WriteFile(sVehList02, PreVeh_02);
 		}
 
-		const std::string sVehList03 = GetDir() + "/PlayerZero/Vehicles/PlaneNoWeapons.ini";
+		const std::string sVehList03 = GetDir() + "/PlayerNone/Vehicles/PlaneNoWeapons.ini";
 		PreVeh_03 = ReadFile(sVehList03);
 		if (PreVeh_03.size() == 0)
 		{
@@ -2791,7 +2794,7 @@ namespace PZSys
 			WriteFile(sVehList03, PreVeh_03);
 		}
 
-		const std::string sVehList04 = GetDir() + "/PlayerZero/Vehicles/HeliWithWeapons.ini";
+		const std::string sVehList04 = GetDir() + "/PlayerNone/Vehicles/HeliWithWeapons.ini";
 		PreVeh_04 = ReadFile(sVehList04);
 		if (PreVeh_04.size() == 0)
 		{
@@ -2814,7 +2817,7 @@ namespace PZSys
 			WriteFile(sVehList04, PreVeh_04);
 		}
 
-		const std::string sVehList05 = GetDir() + "/PlayerZero/Vehicles/PlaneWithWeapons.ini";
+		const std::string sVehList05 = GetDir() + "/PlayerNone/Vehicles/PlaneWithWeapons.ini";
 		PreVeh_05 = ReadFile(sVehList05);
 		if (PreVeh_05.size() == 0)
 		{
@@ -2838,7 +2841,7 @@ namespace PZSys
 			WriteFile(sVehList05, PreVeh_05);
 		}
 
-		const std::string sVehList06 = GetDir() + "/PlayerZero/Vehicles/WeaponisedRoadVehicles.ini";
+		const std::string sVehList06 = GetDir() + "/PlayerNone/Vehicles/WeaponisedRoadVehicles.ini";
 		PreVeh_06 = ReadFile(sVehList06);		
 		if (PreVeh_06.size() == 0)
 		{
@@ -3050,19 +3053,19 @@ namespace PZSys
 	}
 
 	const std::vector<std::string> Lanfiles = {
-		"/PlayerZero/Translate/English.txt",
-		"/PlayerZero/Translate/French.txt",
-		"/PlayerZero/Translate/German.txt",
-		"/PlayerZero/Translate/Italian.txt",
-		"/PlayerZero/Translate/Spanish.txt",
-		"/PlayerZero/Translate/Portuguese.txt",
-		"/PlayerZero/Translate/Polish.txt",
-		"/PlayerZero/Translate/Russian.txt",
-		"/PlayerZero/Translate/Korean.txt",
-		"/PlayerZero/Translate/Chinese.txt",
-		"/PlayerZero/Translate/Japanese.txt",
-		"/PlayerZero/Translate/Spanish.txt",
-		"/PlayerZero/Translate/ChineseSimplify.txt"
+		"/PlayerNone/Translate/English.txt",
+		"/PlayerNone/Translate/French.txt",
+		"/PlayerNone/Translate/German.txt",
+		"/PlayerNone/Translate/Italian.txt",
+		"/PlayerNone/Translate/Spanish.txt",
+		"/PlayerNone/Translate/Portuguese.txt",
+		"/PlayerNone/Translate/Polish.txt",
+		"/PlayerNone/Translate/Russian.txt",
+		"/PlayerNone/Translate/Korean.txt",
+		"/PlayerNone/Translate/Chinese.txt",
+		"/PlayerNone/Translate/Japanese.txt",
+		"/PlayerNone/Translate/Spanish.txt",
+		"/PlayerNone/Translate/ChineseSimplify.txt"
 	};
 	void LoadLang(int lang)
 	{

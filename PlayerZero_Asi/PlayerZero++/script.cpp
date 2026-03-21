@@ -3078,8 +3078,11 @@ void OnlineDress(Ped peddy, ClothX* clothClass)
 	// Re-apply torso (component 3) AFTER jacket (component 11) so GTA picks the correct arm mesh.
 	// Freemode models determine arm drawable from the active jacket; setting component 3 before
 	// component 11 in the loop above can leave arms invisible on some outfit combos.
-	if ((int)clothClass->ClothA.size() > 3 && clothClass->ClothA[3] >= 0)
-		PED::SET_PED_COMPONENT_VARIATION(peddy, 3, clothClass->ClothA[3], clothClass->ClothB[3], 2);
+	// If the outfit has no explicit comp3 value (-1), fall back to drawable 0 so arms are
+	// never left in an undefined state after the jacket is set.
+	int comp3Draw = ((int)clothClass->ClothA.size() > 3 && clothClass->ClothA[3] >= 0) ? clothClass->ClothA[3] : 0;
+	int comp3Tex  = ((int)clothClass->ClothB.size() > 3 && clothClass->ClothB[3] >= 0) ? clothClass->ClothB[3] : 0;
+	PED::SET_PED_COMPONENT_VARIATION(peddy, 3, comp3Draw, comp3Tex, 2);
 }
 void OnlineFaces(Ped peddy, ClothBank* clothBankClass)
 {

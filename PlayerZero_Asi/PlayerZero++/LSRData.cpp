@@ -283,7 +283,7 @@ void LSRData::Init(const std::string& lsrRoot) {
         std::ifstream check(lsrRoot + "/Locations.xml");
         if (!check.is_open()) {
             // Write to PZ log directly (no PZSys dependency).
-            std::ofstream log("PlayerZero/LoggerLight.txt", std::ios::app);
+            std::ofstream log("PlayerNone/LoggerLight.txt", std::ios::app);
             if (log) log << "[LSRData] Locations.xml not found at: " << lsrRoot << "\n";
             return;
         }
@@ -302,7 +302,7 @@ void LSRData::Init(const std::string& lsrRoot) {
 
     // Diagnostic summary so we can confirm the right data was loaded.
     {
-        std::ofstream log("PlayerZero/LoggerLight.txt", std::ios::app);
+        std::ofstream log("PlayerNone/LoggerLight.txt", std::ios::app);
         if (log) {
             log << "[LSRData] Loaded OK — "
                 << "Zones: "       << ZoneGangMap.size()
@@ -335,7 +335,7 @@ void LSRData::Init(const std::string& lsrRoot) {
             LoadGangPeds    (lsrRoot + "/DispatchablePeople_LPP.xml");
             LoadGangVehicles(lsrRoot + "/DispatchableVehicles_LPP.xml");
 
-            std::ofstream log("PlayerZero/LoggerLight.txt", std::ios::app);
+            std::ofstream log("PlayerNone/LoggerLight.txt", std::ios::app);
             if (log) {
                 log << "[LSRData] LPP merged — "
                     << "Zones: "      << ZoneGangMap.size()
