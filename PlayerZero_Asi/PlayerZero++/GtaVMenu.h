@@ -93,7 +93,7 @@ namespace GVM
         float wapEnd;
     public:
         GVMRatioSet()
-            : BanTextOffset_X(42.0f), BanTextOffset_Y(33.55f), Banner_sizeX(29.50f), Banner_sizeY(87.0f), Banner_centerX(34.0f), Banner_centerY(34.0f), Banner_posX(433.96f), Banner_posY(69.67f), Banner_RGBA(RGBA(55, 118, 189, 255)), PngBanner_sizeX(0.227f), PngBanner_sizeY(0.062f), PngBanner_centerX(0.5f), PngBanner_centerY(0.5f), PngBanner_posX(0.128f), PngBanner_posY(0.092f), PngBanner_rotation(0.0f), PngBanner_RGBA(RGBAfloat(1.0f, 1.0f, 1.0f, 1.0f)), boxWidth(289.0f), lineHeight(5.449f), boxTop(104.5f), lineSpace(28.0f), boxPosition(19.5f), textPosition(6.0f), box_RGBA(RGBA(0, 0, 0, 200)), boxActive_RGBA(RGBA(255, 255, 255, 200)), text_RGBA(RGBA(255, 255, 255, 254)), textActive_RGBA(RGBA(0, 0, 0, 245)), tickSizeX(64.0f), tickSizeY(64.0f), tickX(383.5f), tickY(3.62f), tickMulti(41.4f), arrowLeft(138.5f), arrowRight(144.5f), arrowHeight(3.92f), arrowNumberStart(287.898f), arrowTickSizeX(32.0f), arrowTickSizeY(32.0f), arrowNumberGap(5454.0f), wapStart(10.0f), wapEnd(293.0f) {}
+            : BanTextOffset_X(42.0f), BanTextOffset_Y(33.55f), Banner_sizeX(29.50f), Banner_sizeY(87.0f), Banner_centerX(34.0f), Banner_centerY(34.0f), Banner_posX(433.96f), Banner_posY(69.67f), Banner_RGBA(RGBA(180, 0, 0, 255)), PngBanner_sizeX(0.227f), PngBanner_sizeY(0.062f), PngBanner_centerX(0.5f), PngBanner_centerY(0.5f), PngBanner_posX(0.128f), PngBanner_posY(0.092f), PngBanner_rotation(0.0f), PngBanner_RGBA(RGBAfloat(1.0f, 1.0f, 1.0f, 1.0f)), boxWidth(289.0f), lineHeight(5.449f), boxTop(104.5f), lineSpace(28.0f), boxPosition(19.5f), textPosition(6.0f), box_RGBA(RGBA(0, 0, 0, 200)), boxActive_RGBA(RGBA(255, 255, 255, 200)), text_RGBA(RGBA(255, 255, 255, 254)), textActive_RGBA(RGBA(0, 0, 0, 245)), tickSizeX(64.0f), tickSizeY(64.0f), tickX(383.5f), tickY(3.62f), tickMulti(41.4f), arrowLeft(138.5f), arrowRight(144.5f), arrowHeight(3.92f), arrowNumberStart(287.898f), arrowTickSizeX(32.0f), arrowTickSizeY(32.0f), arrowNumberGap(5454.0f), wapStart(10.0f), wapEnd(293.0f) {}
 	public:
 		void NoBanner()
 		{
@@ -106,10 +106,9 @@ namespace GVM
 		}
 		void BlueAndYellow()
 		{
-			box_RGBA.R = 30;
-			box_RGBA.G = 30;
-			box_RGBA.B = 110;
-			boxActive_RGBA.B = 0;
+			box_RGBA.R = 110;
+			box_RGBA.G = 0;
+			box_RGBA.B = 0;
 		}
 		void MenuLeftSide()
 		{

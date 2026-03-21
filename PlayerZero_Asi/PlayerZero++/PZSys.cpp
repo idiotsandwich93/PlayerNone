@@ -2088,7 +2088,7 @@ namespace PZSys
 		std::string Public = PZTranslate[4];
 		if (PZData::MySettings.InviteOnly)
 			Public = PZTranslate[5];
-		std::string Caption = "GTA Online (" + Public + ", " + std::to_string(Playerz) + ")";
+		std::string Caption = "LSR Online (" + Public + ", " + std::to_string(Playerz) + ")";
 
 		for (int i = 0; i < PedList.size(); i++)
 		{

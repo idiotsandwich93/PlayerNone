@@ -67,6 +67,19 @@ Change Log
 ---- Fork Changes by idiotsandwich93 ----
 
 
+-- v60: UI Polish --
+
+- In-game menu color scheme changed from blue to red. Banner and inactive
+  item backgrounds are now red; selected item highlight changed from yellow
+  to white.
+- Session label in the top-left corner changed from "GTA Online (Public, X)"
+  to "LSR Online (Public, X)" to better reflect the mod's integration with
+  Los Santos RED.
+- Fixed player count description in PlayerNone Settings showing "5 - 30"
+  instead of "5 - 50". The English.txt translation file was overriding the
+  correct source string with stale text.
+
+
 -- v59: Rename to PlayerNone --
 
 - Mod renamed from PlayerZero++ to PlayerNone.
