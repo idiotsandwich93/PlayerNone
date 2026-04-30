@@ -139,6 +139,90 @@ Change Log
 ---- Fork Changes by idiotsandwich93 ----
 
 
+-- v61 - v65: Spawn Stability, Combat Overhaul, Weaponized Vehicle Purge --
+
+Spawn / map detection
+- Added explicit Liberty City file marker. PlayerNone/LibertyCity.txt must
+  exist for the mod to switch into LCPP mode. isLC detection in
+  FindPedSpPoint, FindVehSpPoint, and RandomLocation now requires both
+  the marker file AND player X > 2800. Eliminates the long-standing
+  "playerz spawn in and immediately die" loop caused by LS players
+  flying over the eastern ocean (X > 2800) being misidentified as in
+  Liberty City and given LC spawn coordinates while LCPP is not loaded.
+- ZeroLC marker is auto-removed at mod startup, matching the existing
+  ZeroYank (Yankton) and ZeroCayo (Cayo Perico) pattern. Map switcher
+  mods should recreate the appropriate marker file each session.
+
+Inter-gang combat and target picking
+- ApplyGangRelationships now sets hostility between every pair of
+  currently active gang groups, so rival gangs actually fight each
+  other on sight. Gang vs Gp_Friend (civilians) was relaxed from
+  hostile to neutral-ish (value 3) to stop ambient AI from killing
+  random civilian peds the moment a gang member spawns nearby.
+- FindAFight rewritten across all six sub-paths (plane main / plane
+  fallback / heli main / heli fallback / on-foot aggression>9 / on-foot
+  default) so peds in the same gang never target each other and rival
+  gang members are picked as enemies even when both have Friendly=false.
+  Previously only the on-foot default path had gang-aware targeting,
+  which caused same-gang peds in helis or at max aggression to shoot
+  each other and rival gang Players to ignore each other.
+
+Easy-Way-Out (EWO) escape threshold
+- Engaged peds previously set EnemyPos = (current distance) - 1.0f at
+  the moment of contact, meaning any tiny movement away by the enemy
+  would trip EWO and despawn them instantly. Changed to + 150.0f at
+  four call sites in ProcessPZ — peds now only EWO when their target
+  has truly retreated 150m beyond the original engagement distance.
+
+Outfits, makeup, gang identity
+- New ApplyGangColorProp function sets a hat prop (slot 0) in each
+  gang's identity color so members are visually distinct on sight:
+  Families green, Ballas purple, Vagos yellow, Marabunta blue, Aztecas
+  teal, Diablos / Southside red. Diablos colors confirmed against LSR
+  DispatchablePeople.xml; the rest are best-effort and easy to tweak.
+- Male peds no longer get any face makeup (overlay forced to 255).
+  Female peds limited to subtle makeup drawables 0-8 to stop face-paint
+  drawables from appearing on civilians.
+- Removed FemaleCatsuits from the female civilian outfit pool.
+- Removed Hipster from the redneck gang outfit pool — overalls / muscle
+  shirts / trucker via Standard + Casual now, no urban indie look.
+- Added LC independent crews (Luca, McReary) to the organized-crime
+  outfit bucket so they wear High Life / VIP / Designer / Finance &
+  Felony like the other LC families.
+- OnlineDress component-3 (torso/arms) fallback when an outfit has no
+  explicit value: changed from drawable 0 to drawable 15 (LSR's reset
+  default — universal freemode base torso, bare arms, no gloves).
+  Fixes another class of missing-arm / missing-glove combos on certain
+  jacket pairings.
+
+Weaponized vehicle purge
+- Removed every Arena War / Future Shock / Apocalypse / Nightmare
+  weaponized variant from the standard road vehicle pool: ZR380 (all
+  three variants), Dominator5/6, Impaler3/4, Imperator2/3, Slamvan5/6,
+  Cerberus 1-3, Bruiser 1-3, Brutus 1-3, Sasquatch (Monster3/4/5),
+  Issi 4/5/6, Deathbike 1-3, Dune3 (FAV), Dune4/5 (Ramp Buggy),
+  Slamtruck, Hotring. None of these belong on civilian / gang peds
+  driving around story mode.
+- Removed weaponized bombers from the no-weapons plane pool: Alkonost,
+  Volatol, Bombushka.
+- Removed the entire WeaponisedRoadVehicles.ini list (vicList 6) and
+  its in-menu entry from the favourite-vehicle picker. The remaining
+  weaponized vehicles users can still pick are limited to Limo2 and
+  Nightshark only (set in v11).
+- Cleaned matching blip definitions for the removed bombers.
+
+Keybind disable (v61, by request from Captain Vice)
+- Setting Keys_Open_Menu, Keys_Clear_Session, or Keys_Invite_Only to
+  -1 (or 0) in PzSettings.ini now fully disables that keybind instead
+  of being silently overwritten with the default. Validation logic in
+  FindSettings updated to honor the disabled state.
+- Added "Disable Keyboard Binds" toggle in the in-game keybinds menu —
+  flips all three keybinds between disabled (-1) and the original
+  defaults (Z / X / C) in one click.
+- WHileKeyDown short-circuits and returns false immediately when the
+  key index is negative, so disabled binds never poll input.
+
+
 -- v60: UI Polish --
 
 - In-game menu color scheme changed from blue to red. Banner and inactive

@@ -754,8 +754,8 @@ namespace PZData
 		"armytrailer2",
 		"armytanker",
 		"cablecar",
-		"alkonost",
-		"volatol",
+		// "alkonost",  // weaponized bomber — removed
+		// "volatol",   // weaponized bomber — removed
 		"jet",
 		"cargoplane",
 		"cutter",
@@ -1096,11 +1096,11 @@ namespace PZData
 		PZClass::VehBlips("akula", 602),
 		PZClass::VehBlips("insurgent", 601),
 		PZClass::VehBlips("insurgent3", 601),
-		PZClass::VehBlips("volatol", 600),
-		PZClass::VehBlips("alkonost", 600),
+		// PZClass::VehBlips("volatol", 600),   // weaponized bomber — removed
+		// PZClass::VehBlips("alkonost", 600),  // weaponized bomber — removed
 		PZClass::VehBlips("KHANJALI", 598),
 		PZClass::VehBlips("DELUXO",  596),
-		PZClass::VehBlips("bombushka", 585),
+		// PZClass::VehBlips("bombushka", 585),  // weaponized bomber — removed
 		PZClass::VehBlips("seabreeze", 584),
 		PZClass::VehBlips("STARLING", 583),
 		PZClass::VehBlips("ROGUE", 582),
@@ -6686,6 +6686,7 @@ namespace PZData
 	inline const std::string NspmTargs = DirectMain + "/ZeroLoc.ini";
 	inline const std::string ZeroYank = DirectMain + "/Yankton.txt";
 	inline const std::string ZeroCayo = DirectMain + "/Cayo.txt";
+	inline const std::string ZeroLC   = DirectMain + "/LibertyCity.txt";
 	inline const std::string sSnowie = DirectMain + "/Pz_Memo.txt";
 	inline const std::string sYachtPart = DirectMain + "/YachtParty.ini";
 	inline const std::string sYachtPart2 = DirectMain + "/YachtParters.ini";

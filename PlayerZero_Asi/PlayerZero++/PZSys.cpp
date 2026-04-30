@@ -998,7 +998,7 @@ namespace PZSys
 			// Removing the old 15-second static cache fixes a stale-flag window that
 			// sent LS peds to LC coordinates (X > 2800 = off-map ocean in LS = drowning).
 			Vector3 pPos = PlayerPosi();
-			const bool isLC = (pPos.x > 2800.0f);
+			const bool isLC = FileExists(ZeroLC) && (pPos.x > 2800.0f);
 
 			// Cap near-player spawns: only 4 on-foot peds allowed within 100m before
 			// switching to location-based spawns. Larger radius (50-100m) means new
@@ -1098,7 +1098,7 @@ namespace PZSys
 			// heading — those coords are curated with the correct direction;
 			// overwriting caused wrong-way drives and broken AI tasks.
 			Vector3 pCheck = PlayerPosi();
-			const bool isLC = (pCheck.x > 2800.0f);
+			const bool isLC = FileExists(ZeroLC) && (pCheck.x > 2800.0f);
 			Vector3 roadPos; float roadHeading = Pos.R;
 			if (PATHFIND::GET_CLOSEST_VEHICLE_NODE_WITH_HEADING(
 				Pos.X, Pos.Y, Pos.Z, &roadPos, &roadHeading, 1, 3.0f, 0))
@@ -1126,7 +1126,7 @@ namespace PZSys
 		else
 		{
 			Vector3 pPos = PlayerPosi();
-			if (pPos.x > 2800.0f)
+			if (FileExists(ZeroLC) && pPos.x > 2800.0f)
 			{
 				// LC (LPP): pick a random LC borough centre (SanLoocIndex 16-20)
 				// and return the nearest VehDrop point in that region.
@@ -2065,6 +2065,8 @@ namespace PZSys
 	}
 	bool WHileKeyDown(int key)
 	{
+		if (key < 0)
+			return false;
 		bool Output = false;
 		while (IsKeyDown(KeyFind[key]))
 		{
@@ -2272,7 +2274,7 @@ namespace PZSys
 				"TENF", //>
 				"TENF2", //><!-- 10F Widebody -->
 				"ALPHA", //>
-				"ZR380", //><!-- Apocalypse ZR380 -->
+				//"ZR380", //><!-- Apocalypse ZR380 — Weaponized: Arena War -->
 				"BANSHEE", //>
 				"BESTIAGTS", //>
 				"BLISTA2", //><!-- Blista Compact -->
@@ -2300,10 +2302,10 @@ namespace PZSys
 				"FUSILADE", //>
 				"FUTO", //>
 				"FUTO2", //><!-- Futo GTX -->
-				"ZR3802", //><!-- Future Shock ZR380 -->
+				//"ZR3802", //><!-- Future Shock ZR380 — Weaponized: Arena War -->
 				"GB200", //>
 				"GROWLER", //>
-				"HOTRING", //>
+				//"HOTRING", //><!-- Weaponized: Arena War -->
 				"IMORGON", //>
 				"ISSI7", //><!-- Issi Sport -->
 				"ITALIGTO", //>
@@ -2323,7 +2325,7 @@ namespace PZSys
 				"MASSACRO2", //><!-- Massacro (Racecar) -->
 				"NEO", //>
 				"NEON", //>
-				"ZR3803", //><!-- Nightmare ZR380 -->
+				//"ZR3803", //><!-- Nightmare ZR380 — Weaponized: Arena War -->
 				"OMNIS", //>
 				"OMNISEGT", //>
 				"PARAGON", //>
@@ -2385,10 +2387,10 @@ namespace PZSys
 				"FACTION", //>
 				"FACTION2", //><!-- Faction Custom -->
 				"FACTION3", //><!-- Faction Custom Donk -->
-				"DOMINATOR5", //><!-- Future Shock Dominator -->
-				"IMPALER3", //><!-- Future Shock Impaler -->
-				"IMPERATOR2", //><!-- Future Shock Imperator -->
-				"SLAMVAN5", //><!-- Future Shock Slamvan -->
+				//"DOMINATOR5", //><!-- Future Shock Dominator — Weaponized: Arena War -->
+				//"IMPALER3", //><!-- Future Shock Impaler — Weaponized: Arena War -->
+				//"IMPERATOR2", //><!-- Future Shock Imperator — Weaponized: Arena War -->
+				//"SLAMVAN5", //><!-- Future Shock Slamvan — Weaponized: Arena War -->
 				"GAUNTLET", //>
 				"GAUNTLET3", //><!-- Gauntlet Classic -->
 				"GAUNTLET5", //><!-- Gauntlet Classic Custom -->
@@ -2403,10 +2405,10 @@ namespace PZSys
 				"MANANA2", //><!-- Manana Custom -->
 				"MOONBEAM", //>
 				"MOONBEAM2", //><!-- Moonbeam Custom -->
-				"DOMINATOR6", //><!-- Nightmare Dominator -->
-				"IMPALER4", //><!-- Nightmare Impaler -->
-				"IMPERATOR3", //><!-- Nightmare Imperator -->
-				"SLAMVAN6", //><!-- Nightmare Slamvan -->
+				//"DOMINATOR6", //><!-- Nightmare Dominator — Weaponized: Arena War -->
+				//"IMPALER4", //><!-- Nightmare Impaler — Weaponized: Arena War -->
+				//"IMPERATOR3", //><!-- Nightmare Imperator — Weaponized: Arena War -->
+				//"SLAMVAN6", //><!-- Nightmare Slamvan — Weaponized: Arena War -->
 				"NIGHTSHADE", //>
 				"PEYOTE2", //><!-- Peyote Gasser -->
 				"PHOENIX", //>
@@ -2475,10 +2477,10 @@ namespace PZSys
 				"VISERIS", //>
 				"ZTYPE", //>
 				"ZION3", //><!-- Zion Classic -->
-				"CERBERUS", //><!-- Apocalypse Cerberus -->
-				"CERBERUS2", //><!-- Future Shock Cerberus -->
+				//"CERBERUS", //><!-- Apocalypse Cerberus — Weaponized: Arena War -->
+				//"CERBERUS2", //><!-- Future Shock Cerberus — Weaponized: Arena War -->
 				"GUARDIAN", //>
-				"CERBERUS3", //><!-- Nightmare Cerberus -->
+				//"CERBERUS3", //><!-- Nightmare Cerberus — Weaponized: Arena War -->
 				"ASEA", //>
 				"ASTEROPE", //>
 				"CINQUEMILA", //>
@@ -2514,9 +2516,9 @@ namespace PZSys
 				"WARRENER", //>
 				"WARRENER2", //><!-- Warrener HKR -->
 				"WASHINGTON", //>
-				"BRUISER", //><!-- Apocalypse Bruiser -->
-				"BRUTUS", //><!-- Apocalypse Brutus -->
-				"MONSTER3", //><!-- Apocalypse Sasquatch -->
+				//"BRUISER", //><!-- Apocalypse Bruiser — Weaponized: Arena War -->
+				//"BRUTUS", //><!-- Apocalypse Brutus — Weaponized: Arena War -->
+				//"MONSTER3", //><!-- Apocalypse Sasquatch — Weaponized: Arena War -->
 				"BIFTA", //>
 				"BLAZER", //>
 				"BLAZER5", //><!-- Blazer Aqua -->
@@ -2528,13 +2530,13 @@ namespace PZSys
 				"DRAUGUR", //>
 				"DUBSTA3", //><!-- Dubsta 6x6 -->
 				"DUNE", //>
-				"DUNE3", //><!-- Dune FAV -->
+				//"DUNE3", //><!-- Dune FAV — Weaponized: mounted minigun -->
 				"DLOADER", //>
 				"EVERON", //>
 				"FREECRAWLER", //>
-				"BRUISER2", //><!-- Future Shock Bruiser -->
-				"BRUTUS2", //><!-- Future Shock Brutus -->
-				"MONSTER4", //><!-- Future Shock Sasquatch -->
+				//"BRUISER2", //><!-- Future Shock Bruiser — Weaponized: Arena War -->
+				//"BRUTUS2", //><!-- Future Shock Brutus — Weaponized: Arena War -->
+				//"MONSTER4", //><!-- Future Shock Sasquatch — Weaponized: Arena War -->
 				"HELLION", //>
 				"BLAZER3", //><!-- Hot Rod Blazer -->
 				"BFINJECTION", //>
@@ -2543,13 +2545,13 @@ namespace PZSys
 				"MONSTER", //><!-- Liberator -->
 				"MARSHALL", //>
 				"MESA3", //><!-- Merryweather Mesa -->
-				"BRUISER3", //><!-- Nightmare Bruiser -->
-				"BRUTUS3", //><!-- Nightmare Brutus -->
-				"MONSTER5", //><!-- Nightmare Sasquatch -->
+				//"BRUISER3", //><!-- Nightmare Bruiser — Weaponized: Arena War -->
+				//"BRUTUS3", //><!-- Nightmare Brutus — Weaponized: Arena War -->
+				//"MONSTER5", //><!-- Nightmare Sasquatch — Weaponized: Arena War -->
 				"OUTLAW", //>
 				"PATRIOT3", //><!-- Patriot Mil-Spec -->
-				"DUNE4", //><!-- Ramp Buggy mission variant -->
-				"DUNE5", //><!-- Ramp Buggy -->
+				//"DUNE4", //><!-- Ramp Buggy mission variant — Weaponized: ramp launcher -->
+				//"DUNE5", //><!-- Ramp Buggy — Weaponized: ramp launcher -->
 				"RANCHERXL", //>
 				"REBEL2", //>
 				"RIATA", //>
@@ -2602,7 +2604,7 @@ namespace PZSys
 				"TOROS", //>
 				"XLS", //>
 				"XLS2", //><!-- XLS (Armored) -->
-				"ISSI4", //><!-- Apocalypse Issi -->
+				//"ISSI4", //><!-- Apocalypse Issi — Weaponized: Arena War -->
 				"ASBO", //>
 				"BLISTA", //>
 				"KANJO", //><!-- Blista Kanjo -->
@@ -2611,10 +2613,10 @@ namespace PZSys
 				"BRIOSO3", //><!-- Brioso 300 Widebody -->
 				"CLUB", //>
 				"DILETTANTE", //>
-				"ISSI5", //><!-- Future Shock Issi -->
+				//"ISSI5", //><!-- Future Shock Issi — Weaponized: Arena War -->
 				"ISSI2", //>
 				"ISSI3", //><!-- Issi Classic -->
-				"ISSI6", //><!-- Nightmare Issi -->
+				//"ISSI6", //><!-- Nightmare Issi — Weaponized: Arena War -->
 				"PANTO", //>
 				"PRAIRIE", //>
 				"RHAPSODY", //>
@@ -2654,10 +2656,10 @@ namespace PZSys
 				"YOUGA4", //><!-- Youga Custom -->
 				"BRICKADE", //>
 				"RALLYTRUCK", //><!-- Dune -->
-				"SLAMTRUCK", //>
+				//"SLAMTRUCK", //><!-- Weaponized: ramp launcher -->
 				"WASTLNDR",
 				"AKUMA", //>
-				"DEATHBIKE", //><!-- Apocalypse Deathbike -->
+				//"DEATHBIKE", //><!-- Apocalypse Deathbike — Weaponized: Arena War -->
 				"AVARUS", //>
 				"BAGGER", //>
 				"BATI", //>
@@ -2679,7 +2681,7 @@ namespace PZSys
 				"FAGGIO", //><!-- Faggio Sport -->
 				"FCR", //>
 				"FCR2", //><!-- FCR 1000 Custom -->
-				"DEATHBIKE2", //><!-- Future Shock Deathbike -->
+				//"DEATHBIKE2", //><!-- Future Shock Deathbike — Weaponized: Arena War -->
 				"GARGOYLE", //>
 				"HAKUCHOU", //>
 				"HAKUCHOU2", //><!-- Hakuchou Drag -->
@@ -2690,7 +2692,7 @@ namespace PZSys
 				"MANCHEZ2", //><!-- Manchez Scout -->
 				"NEMESIS", //>
 				"NIGHTBLADE", //>
-				"DEATHBIKE3", //><!-- Nightmare Deathbike -->
+				//"DEATHBIKE3", //><!-- Nightmare Deathbike — Weaponized: Arena War -->
 				"PCJ", //>
 				"RROCKET", //><!-- Rampant Rocket -->
 				"RATBIKE", //>
@@ -2841,34 +2843,10 @@ namespace PZSys
 			WriteFile(sVehList05, PreVeh_05);
 		}
 
-		const std::string sVehList06 = GetDir() + "/PlayerNone/Vehicles/WeaponisedRoadVehicles.ini";
-		PreVeh_06 = ReadFile(sVehList06);		
-		if (PreVeh_06.size() == 0)
-		{
-			const std::vector<std::string> PreVehSet_06 = {
-				"LIMO2", //><!-- Turreted Limo -->
-				"INSURGENT", //>
-				"INSURGENT2", //><!-- Insurgent Pick-Up -->
-				"INSURGENT3", //><!-- Insurgent Pick-Up Custom -->
-				"NIGHTSHARK", //>
-				"CARACARA", //>
-				"MENACER", //>
-				"TECHNICAL", //>
-				"TECHNICAL2", //><!-- Technical Aqua -->
-				"TECHNICAL3", //><!-- Technical Custom -->
-				"SCARAB", //><!-- Apocalypse Scarab -->
-				"APC", //>
-				"HALFTRACK", //>
-				"SCARAB2", //><!-- Future Shock Scarab -->
-				"SCARAB3", //><!-- Nightmare Scarab -->
-				"RIOT2", //><!-- RCV -->
-				"RHINO", //>
-				"KHANJALI" //><!-- TM-02 Khanjali -->
-			};
-			
-			PreVeh_06 = PreVehSet_06;
-			WriteFile(sVehList06, PreVeh_06);
-		}
+		// Weaponised road vehicles removed — PreVeh_06 stays empty, no spawning.
+		// const std::string sVehList06 = GetDir() + "/PlayerNone/Vehicles/WeaponisedRoadVehicles.ini";
+		// PreVeh_06 = ReadFile(sVehList06);
+		// if (PreVeh_06.size() == 0) { ... WriteFile(sVehList06, PreVeh_06); }
 	}
 
 	void ReBuildIni()
@@ -2985,11 +2963,20 @@ namespace PZSys
 				else if (StringContains("Control_B_Invite_Only=", line))
 					MySettings.Control_B_Invite_Only = StingNumbersInt(line);
 				else if (StringContains("Keys_Open_Menu=", line))
-					MySettings.Keys_Open_Menu = StingNumbersInt(line);
+				{
+					int v = StingNumbersInt(line);
+					MySettings.Keys_Open_Menu = (v == 0) ? -1 : v;
+				}
 				else if (StringContains("Keys_Clear_Session=", line))
-					MySettings.Keys_Clear_Session = StingNumbersInt(line);
+				{
+					int v = StingNumbersInt(line);
+					MySettings.Keys_Clear_Session = (v == 0) ? -1 : v;
+				}
 				else if (StringContains("Keys_Invite_Only=", line))
-					MySettings.Keys_Invite_Only = StingNumbersInt(line);
+				{
+					int v = StingNumbersInt(line);
+					MySettings.Keys_Invite_Only = (v == 0) ? -1 : v;
+				}
 				else if (StringContains("Control_Keys_Players_List=", line))
 					MySettings.Control_Keys_Players_List = StingNumbersInt(line);
 				else if (StringContains("Control_Keys_AddPed=", line))
@@ -3019,13 +3006,13 @@ namespace PZSys
 		if (MySettings.Control_B_Invite_Only >= (int)ControlSym.size() || MySettings.Control_B_Invite_Only < 0)
 			MySettings.Control_B_Invite_Only = 45;
 
-		if (MySettings.Keys_Open_Menu >= (int)KeyFind.size() || MySettings.Keys_Open_Menu < 0)
+		if (MySettings.Keys_Open_Menu != -1 && (MySettings.Keys_Open_Menu >= (int)KeyFind.size() || MySettings.Keys_Open_Menu < 0))
 			MySettings.Keys_Open_Menu = 90;
 
-		if (MySettings.Keys_Clear_Session >= (int)KeyFind.size() || MySettings.Keys_Clear_Session < 0)
+		if (MySettings.Keys_Clear_Session != -1 && (MySettings.Keys_Clear_Session >= (int)KeyFind.size() || MySettings.Keys_Clear_Session < 0))
 			MySettings.Keys_Clear_Session = 88;
 
-		if (MySettings.Keys_Invite_Only >= (int)KeyFind.size() || MySettings.Keys_Invite_Only < 0)
+		if (MySettings.Keys_Invite_Only != -1 && (MySettings.Keys_Invite_Only >= (int)KeyFind.size() || MySettings.Keys_Invite_Only < 0))
 			MySettings.Keys_Invite_Only = 67;
 
 		if (MySettings.Control_Keys_Players_List >= (int)ControlSym.size() || MySettings.Control_Keys_Players_List < 0)

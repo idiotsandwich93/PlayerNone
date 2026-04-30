@@ -28,6 +28,7 @@ bool ClosedSession = false;
 bool MissingFunk = false;
 bool InPasiveMode = false;
 bool StartTheMod = true;
+bool KeybindsDisabled = false;
 
 int AirVehCount = 0;
 int FollowMe;
@@ -125,6 +126,32 @@ void MoveEntity(Entity ent, Vector3 pos)
 
 // Returns outfit categories appropriate for a gang type, for freemode peds.
 // Falls back to generic civilian categories if gangID doesn't match.
+// Apply a gang-color hat prop (prop slot 0) to a freemode ped after outfit is set.
+// Colors follow each gang's real identity — not territory icon color.
+// Diablos values (d=14, t=2/t=3) are confirmed from LSR DispatchablePeople.xml.
+// All other texture values are best-effort starting points — verify in-game before final release.
+void ApplyGangColorProp(Ped ped, const std::string& gangID)
+{
+	struct GangProp { int draw; int tex; };
+	static const std::vector<std::pair<std::string, GangProp>> GangColorMap = {
+		{ "AMBIENT_GANG_FAMILY",    { 14,  6 } },  // Green  — Families     (VERIFY IN-GAME)
+		{ "AMBIENT_GANG_BALLAS",    { 14,  8 } },  // Purple — Ballas       (VERIFY IN-GAME)
+		{ "AMBIENT_GANG_MEXICAN",   { 14,  4 } },  // Yellow — Vagos        (VERIFY IN-GAME)
+		{ "AMBIENT_GANG_MARABUNTE", { 14,  1 } },  // Blue   — Marabunta    (VERIFY IN-GAME)
+		{ "AMBIENT_GANG_SALVA",     { 14,  0 } },  // Teal   — Aztecas      (VERIFY IN-GAME)
+		{ "AMBIENT_GANG_DIABLOS",   { 14,  2 } },  // Red    — Diablos      (confirmed: LSR DispatchablePeople.xml)
+		{ "AMBIENT_GANG_SOUTHSIDE", { 14,  3 } },  // Red    — Southside    (confirmed variant: LSR Diablos data)
+	};
+	for (const auto& entry : GangColorMap)
+	{
+		if (entry.first == gangID)
+		{
+			PED::SET_PED_PROP_INDEX(ped, 0, entry.second.draw, entry.second.tex, false);
+			return;
+		}
+	}
+}
+
 ClothX GetGangCloths(const std::string& gangID, bool male)
 {
 	LoggerLight("-GetGangCloths- " + gangID);
@@ -143,6 +170,8 @@ ClothX GetGangCloths(const std::string& gangID, bool male)
 		"AMBIENT_GANG_MADRAZO",
 		// LC Italian families
 		"AMBIENT_GANG_SINDACCO", "AMBIENT_GANG_FORELLI", "AMBIENT_GANG_LEONE",
+		// LC independent crews
+		"AMBIENT_GANG_LUCA", "AMBIENT_GANG_MCREARY",
 		// LC other organized crime
 		"AMBIENT_GANG_JEWISH", "AMBIENT_GANG_PETROVIC",
 		"AMBIENT_GANG_YAKUZA", "AMBIENT_GANG_KOREAN"
@@ -178,9 +207,11 @@ ClothX GetGangCloths(const std::string& gangID, bool male)
 	}
 	else if (inList(sRedneckGangs))
 	{
+		// Overalls, muscle shirts, trucker aesthetic — Standard and Casual cover this.
+		// Hipster dropped: too urban/indie, doesn't fit the redneck look.
 		prefixes = male
-			? std::vector<std::string>{ "MaleStandard", "MaleCasual", "MaleHipster" }
-			: std::vector<std::string>{ "FemaleStandard", "FemaleCasual", "FemaleHipster" };
+			? std::vector<std::string>{ "MaleStandard", "MaleCasual" }
+			: std::vector<std::string>{ "FemaleStandard", "FemaleCasual" };
 	}
 	else
 	{
@@ -262,7 +293,7 @@ ClothX GetCloths(bool male)
 	};
 	static const std::vector<std::string> sFemaleCivil = {
 		"FemaleBeach", "FemaleBusiness Pants", "FemaleBusiness Skirts", "FemaleCasual",
-		"FemaleCatsuits", "FemaleDesigner", "FemaleEccentric", "FemaleFinance & Felony",
+		"FemaleDesigner", "FemaleEccentric", "FemaleFinance & Felony",
 		"FemaleFlashy", "FemaleHipster", "FemaleImport-Export", "FemaleLowrider",
 		"FemaleLowrider Classics", "FemaleLuxury", "FemaleParty", "FemaleSmart",
 		"FemaleSporty", "FemaleStandard", "FemaleStreet"
@@ -488,6 +519,8 @@ void LoadinData()
 
 	FindSettings();
 
+	KeybindsDisabled = (MySettings.Keys_Open_Menu == -1 && MySettings.Keys_Clear_Session == -1 && MySettings.Keys_Invite_Only == -1);
+
 	GP_Player = GetRelationship();
 	FollowMe = PED::GET_PED_GROUP_INDEX(PLAYER::PLAYER_PED_ID());
 	Gp_Friend = AddRelationship("Stranger");
@@ -689,18 +722,12 @@ std::vector<FreeOverLay> AddOverLay(bool male)
 		}//Ageing
 		else if (i == 4)
 		{
-			int iFace = RandomInt(0, 50);
-			if (iFace < 30)
-			{
-				iChange = RandomInt(0, 15);
-			}
-			else if (iFace < 45)
-			{
-				iChange = RandomInt(0, iChange);
-				fVar = RandomFloat(0.85f, 0.99f);
-			}
-			else
+			// Males get no makeup — 255 disables the overlay entirely.
+			// Females get subtle makeup only (0-8) to avoid face paint drawables.
+			if (male)
 				iChange = 255;
+			else
+				iChange = RandomInt(0, 8);
 		}//Makeup
 		else if (i == 5)
 		{
@@ -1715,15 +1742,25 @@ void ApplyGangRelationships(Hash gangGroup)
 
 	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(playerVal,  GP_Player,  gangGroup);
 	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(playerVal,  gangGroup,  GP_Player);
-	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(hostileVal, gangGroup,  Gp_Friend);
-	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(hostileVal, Gp_Friend,  gangGroup);
-	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5,          gangGroup,  Gp_Follow);
-	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5,          Gp_Follow,  gangGroup);
-	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(hostileVal, gangGroup,  GP_Attack);
-	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(hostileVal, GP_Attack,  gangGroup);
+	// Neutral toward friendly/non-gang PZ groups -- avoids ambient GTA AI auto-combat
+	// that causes peds to die randomly. FindAFight/GreefWar handle explicit targeting.
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(3, gangGroup,  Gp_Friend);
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(3, Gp_Friend,  gangGroup);
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, gangGroup,  Gp_Follow);
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, Gp_Follow,  gangGroup);
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(3, gangGroup,  GP_Attack);
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(3, GP_Attack,  gangGroup);
 	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(hostileVal, gangGroup,  GP_Mental);
 	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(hostileVal, GP_Mental,  gangGroup);
 	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(0,          gangGroup,  gangGroup); // same gang: neutral
+
+	// Set hostility between this gang and every other currently active gang group.
+	for (Hash other : ActiveGangGroups)
+	{
+		if (other == gangGroup) continue;
+		PED::SET_RELATIONSHIP_BETWEEN_GROUPS(hostileVal, gangGroup, other);
+		PED::SET_RELATIONSHIP_BETWEEN_GROUPS(hostileVal, other,     gangGroup);
+	}
 }
 
 // Returns 1 (low), 2 (medium), or 3 (high) crime aggression for the given GTA zone name.
@@ -2726,9 +2763,11 @@ Ped FindAFight(PlayerBrain* brain)
 		{
 			for (int i = 0; i < (int)PedList.size(); i++)
 			{
+				bool sameGang  = !brain->GangID.empty() && (PedList[i].GangID == brain->GangID);
+				bool rivalGang = !brain->GangID.empty() && !PedList[i].GangID.empty() && (PedList[i].GangID != brain->GangID);
 				if (MySettings.Aggression > 9)
 				{
-					if (PedList[i].ThisPed != brain->ThisPed && PedList[i].ThisPed != NULL && !PedList[i].YoDeeeed)
+					if (PedList[i].ThisPed != brain->ThisPed && !sameGang && PedList[i].ThisPed != NULL && !PedList[i].YoDeeeed)
 					{
 						if (PedList[i].IsPlane || PedList[i].IsHeli)
 							You = i;
@@ -2736,7 +2775,7 @@ Ped FindAFight(PlayerBrain* brain)
 				}
 				else
 				{
-					if (PedList[i].ThisPed != brain->ThisPed && PedList[i].Friendly != Friend && PedList[i].ThisPed != NULL && !PedList[i].YoDeeeed && PedList[i].IsPlane)
+					if (PedList[i].ThisPed != brain->ThisPed && !sameGang && (rivalGang || PedList[i].Friendly != Friend) && PedList[i].ThisPed != NULL && !PedList[i].YoDeeeed && PedList[i].IsPlane)
 					{
 						if (PedList[i].IsPlane || PedList[i].IsHeli)
 							You = i;
@@ -2748,9 +2787,11 @@ Ped FindAFight(PlayerBrain* brain)
 			{
 				for (int i = 0; i < (int)PedList.size(); i++)
 				{
+					bool sameGang  = !brain->GangID.empty() && (PedList[i].GangID == brain->GangID);
+					bool rivalGang = !brain->GangID.empty() && !PedList[i].GangID.empty() && (PedList[i].GangID != brain->GangID);
 					if (MySettings.Aggression > 9)
 					{
-						if (PedList[i].ThisPed != brain->ThisPed && PedList[i].ThisPed != NULL && !PedList[i].YoDeeeed)
+						if (PedList[i].ThisPed != brain->ThisPed && !sameGang && PedList[i].ThisPed != NULL && !PedList[i].YoDeeeed)
 						{
 							if (DistanceTo(PedList[i].ThisPed, brain->ThisPed) < Dist)
 							{
@@ -2761,7 +2802,7 @@ Ped FindAFight(PlayerBrain* brain)
 					}
 					else
 					{
-						if (PedList[i].ThisPed != brain->ThisPed && PedList[i].Friendly != Friend && PedList[i].ThisPed != NULL && !PedList[i].YoDeeeed)
+						if (PedList[i].ThisPed != brain->ThisPed && !sameGang && (rivalGang || PedList[i].Friendly != Friend) && PedList[i].ThisPed != NULL && !PedList[i].YoDeeeed)
 						{
 							if (DistanceTo(PedList[i].ThisPed, brain->ThisPed) < Dist)
 							{
@@ -2777,14 +2818,16 @@ Ped FindAFight(PlayerBrain* brain)
 		{
 			for (int i = 0; i < (int)PedList.size(); i++)
 			{
+				bool sameGang  = !brain->GangID.empty() && (PedList[i].GangID == brain->GangID);
+				bool rivalGang = !brain->GangID.empty() && !PedList[i].GangID.empty() && (PedList[i].GangID != brain->GangID);
 				if (MySettings.Aggression > 9)
 				{
-					if (PedList[i].ThisPed != brain->ThisPed && PedList[i].ThisPed != NULL && !PedList[i].YoDeeeed && PedList[i].IsHeli)
+					if (PedList[i].ThisPed != brain->ThisPed && !sameGang && PedList[i].ThisPed != NULL && !PedList[i].YoDeeeed && PedList[i].IsHeli)
 						You = i;
 				}
 				else
 				{
-					if (PedList[i].ThisPed != brain->ThisPed && PedList[i].Friendly != Friend && PedList[i].ThisPed != NULL && !PedList[i].YoDeeeed && PedList[i].IsHeli)
+					if (PedList[i].ThisPed != brain->ThisPed && !sameGang && (rivalGang || PedList[i].Friendly != Friend) && PedList[i].ThisPed != NULL && !PedList[i].YoDeeeed && PedList[i].IsHeli)
 						You = i;
 				}
 			}
@@ -2793,9 +2836,11 @@ Ped FindAFight(PlayerBrain* brain)
 			{
 				for (int i = 0; i < (int)PedList.size(); i++)
 				{
+					bool sameGang  = !brain->GangID.empty() && (PedList[i].GangID == brain->GangID);
+					bool rivalGang = !brain->GangID.empty() && !PedList[i].GangID.empty() && (PedList[i].GangID != brain->GangID);
 					if (MySettings.Aggression > 9)
 					{
-						if (PedList[i].ThisPed != brain->ThisPed && PedList[i].ThisPed != NULL && !PedList[i].YoDeeeed && !PedList[i].IsPlane)
+						if (PedList[i].ThisPed != brain->ThisPed && !sameGang && PedList[i].ThisPed != NULL && !PedList[i].YoDeeeed && !PedList[i].IsPlane)
 						{
 							if (DistanceTo(PedList[i].ThisPed, brain->ThisPed) < Dist)
 							{
@@ -2806,7 +2851,7 @@ Ped FindAFight(PlayerBrain* brain)
 					}
 					else
 					{
-						if (PedList[i].ThisPed != brain->ThisPed && PedList[i].Friendly != Friend && PedList[i].ThisPed != NULL && !PedList[i].YoDeeeed && !PedList[i].IsPlane)
+						if (PedList[i].ThisPed != brain->ThisPed && !sameGang && (rivalGang || PedList[i].Friendly != Friend) && PedList[i].ThisPed != NULL && !PedList[i].YoDeeeed && !PedList[i].IsPlane)
 						{
 							if (DistanceTo(PedList[i].ThisPed, brain->ThisPed) < Dist)
 							{
@@ -2824,7 +2869,9 @@ Ped FindAFight(PlayerBrain* brain)
 			{
 				if (MySettings.Aggression > 9)
 				{
-					if (PedList[i].ThisPed != brain->ThisPed && PedList[i].ThisPed != NULL && !PedList[i].YoDeeeed && !PedList[i].IsPlane && !PedList[i].IsHeli)
+					// Even at max aggression, never target same-gang members.
+					bool sameGang = !brain->GangID.empty() && (PedList[i].GangID == brain->GangID);
+					if (PedList[i].ThisPed != brain->ThisPed && !sameGang && PedList[i].ThisPed != NULL && !PedList[i].YoDeeeed && !PedList[i].IsPlane && !PedList[i].IsHeli)
 					{
 						if (DistanceTo(PedList[i].ThisPed, brain->ThisPed) < Dist)
 						{
@@ -2835,7 +2882,15 @@ Ped FindAFight(PlayerBrain* brain)
 				}
 				else
 				{
-					if (PedList[i].ThisPed != brain->ThisPed && PedList[i].Friendly != Friend && PedList[i].ThisPed != NULL && !PedList[i].YoDeeeed && !PedList[i].IsPlane && !PedList[i].IsHeli)
+					// Same-gang members never fight each other. Rival gang members always fight.
+					// Non-gang hostile peds have an aggression-scaled chance of being targeted.
+					bool sameGang      = !brain->GangID.empty() && (PedList[i].GangID == brain->GangID);
+					bool rivalGang     = !brain->GangID.empty() && !PedList[i].GangID.empty() && (PedList[i].GangID != brain->GangID);
+					bool nonGangHostile = !brain->GangID.empty() && PedList[i].GangID.empty() && !PedList[i].Friendly;
+					bool opportunistic  = nonGangHostile && (RandomInt(1, 100) <= 10); // 10% chance
+					bool isHostileTgt  = !sameGang && (rivalGang || opportunistic || (PedList[i].Friendly != Friend));
+
+					if (PedList[i].ThisPed != brain->ThisPed && isHostileTgt && PedList[i].ThisPed != NULL && !PedList[i].YoDeeeed && !PedList[i].IsPlane && !PedList[i].IsHeli)
 					{
 						if (DistanceTo(PedList[i].ThisPed, brain->ThisPed) < Dist)
 						{
@@ -3078,9 +3133,9 @@ void OnlineDress(Ped peddy, ClothX* clothClass)
 	// Re-apply torso (component 3) AFTER jacket (component 11) so GTA picks the correct arm mesh.
 	// Freemode models determine arm drawable from the active jacket; setting component 3 before
 	// component 11 in the loop above can leave arms invisible on some outfit combos.
-	// If the outfit has no explicit comp3 value (-1), fall back to drawable 0 so arms are
-	// never left in an undefined state after the jacket is set.
-	int comp3Draw = ((int)clothClass->ClothA.size() > 3 && clothClass->ClothA[3] >= 0) ? clothClass->ClothA[3] : 0;
+	// If the outfit has no explicit comp3 value (-1), fall back to drawable 15 — the universal
+	// freemode base torso (no gloves, bare arms). LSR uses 15 as its reset default for comp3.
+	int comp3Draw = ((int)clothClass->ClothA.size() > 3 && clothClass->ClothA[3] >= 0) ? clothClass->ClothA[3] : 15;
 	int comp3Tex  = ((int)clothClass->ClothB.size() > 3 && clothClass->ClothB[3] >= 0) ? clothClass->ClothB[3] : 0;
 	PED::SET_PED_COMPONENT_VARIATION(peddy, 3, comp3Draw, comp3Tex, 2);
 }
@@ -3504,6 +3559,8 @@ Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 							PED::SET_PED_COMPONENT_VARIATION(ThisPed, 2, brain->PFMySetting.MyHair.Comp, brain->PFMySetting.MyHair.Text, 2);
 							PED::_SET_PED_HAIR_COLOR(ThisPed, brain->PFMySetting.HairColour, brain->PFMySetting.HairStreaks);
 							PED::SET_PED_COMPONENT_VARIATION(ThisPed, 9, 0, 0, 2); // no utility belt after gang redress
+							// Force gang-color hat prop for street gangs — identity follows the ped, not the zone.
+							ApplyGangColorProp(ThisPed, brain->GangID);
 						}
 
 						// Friendly / civilian peds never commit crimes and are never armed.
@@ -3632,8 +3689,8 @@ std::string RandVeh(int vicList)
 		sVeh = PreVeh_04[LessRandomInt("RandVeh04", 0, (int)PreVeh_04.size() - 1)];		// MilHeli
 	else if (vicList == 5)
 		sVeh = PreVeh_05[LessRandomInt("RandVeh05", 0, (int)PreVeh_05.size() - 1)];		// MilPlane
-	else if (vicList == 6)
-		sVeh = PreVeh_06[LessRandomInt("RandVeh06", 0, (int)PreVeh_06.size() - 1)];		// MilCar
+	// else if (vicList == 6) — weaponised road vehicles removed
+	//	sVeh = PreVeh_06[LessRandomInt("RandVeh06", 0, (int)PreVeh_06.size() - 1)];		// MilCar
 	else if (vicList == 7)
 		sVeh = PreVeh_07[LessRandomInt("RandVeh07", 0, (int)PreVeh_07.size() - 1)];
 	else if (vicList == 8 || vicList == 999)
@@ -5295,7 +5352,7 @@ void ProcessPZ(PlayerBrain* brain)
 													brain->ThisEnemy = FindAFight(brain);
 													if (brain->ThisEnemy != NULL)
 													{
-														brain->EnemyPos = DistanceTo((Entity)brain->ThisEnemy, PedPos) - 1.0f;
+														brain->EnemyPos = DistanceTo((Entity)brain->ThisEnemy, PedPos) + 150.0f; // EWO escape threshold: only if enemy retreats 150m beyond initial contact
 														PickFight(PlayZero, brain->ThisVeh, brain->ThisEnemy, brain->PrefredVehicle);
 														FightTogether(brain->ThisVeh, brain->ThisEnemy);
 													}
@@ -5361,7 +5418,7 @@ void ProcessPZ(PlayerBrain* brain)
 												brain->ThisEnemy = FindAFight(brain);
 												if (brain->ThisEnemy != NULL)
 												{
-													brain->EnemyPos = DistanceTo((Entity)brain->ThisEnemy, PedPos) - 1.0f;
+													brain->EnemyPos = DistanceTo((Entity)brain->ThisEnemy, PedPos) + 150.0f; // EWO escape threshold: only if enemy retreats 150m beyond initial contact
 													PickFight(PlayZero, brain->ThisVeh, brain->ThisEnemy, brain->PrefredVehicle);
 													FightTogether(brain->ThisVeh, brain->ThisEnemy);
 												}
@@ -5588,7 +5645,7 @@ void ProcessPZ(PlayerBrain* brain)
 											brain->ThisEnemy = FindAFight(brain);
 											if (brain->ThisEnemy != NULL)
 											{
-												brain->EnemyPos = DistanceTo((Entity)brain->ThisEnemy, PedPos) - 1.0f;
+												brain->EnemyPos = DistanceTo((Entity)brain->ThisEnemy, PedPos) + 150.0f; // EWO escape threshold: only if enemy retreats 150m beyond initial contact
 												GreefWar(PlayZero, brain->ThisEnemy);
 											}
 											else
@@ -5861,7 +5918,7 @@ void ProcessPZ(PlayerBrain* brain)
 									}
 									else
 									{
-										brain->EnemyPos = DistanceTo((Entity)brain->ThisEnemy, PedPos) - 1.0f;
+										brain->EnemyPos = DistanceTo((Entity)brain->ThisEnemy, PedPos) + 150.0f; // EWO escape threshold: only if enemy retreats 150m beyond initial contact
 										GreefWar(PlayZero, brain->ThisEnemy);
 									}
 								}
@@ -6181,12 +6238,35 @@ void KeysBound(int index)
 	if (Pz_MenuList.size() > 0)
 		Pz_MenuList.pop_back();
 
+	int bound = FindKeyBinds(false);
+	if (bound >= 0 && bound < (int)KeyFind.size() && KeyFind[bound] == '0')
+		bound = -1;
+
 	if (index == 0)
-		MySettings.Keys_Open_Menu = FindKeyBinds(false);
+		MySettings.Keys_Open_Menu = bound;
 	else if (index == 1)
-		MySettings.Keys_Clear_Session = FindKeyBinds(false);
+		MySettings.Keys_Clear_Session = bound;
 	else if (index == 2)
-		MySettings.Keys_Invite_Only = FindKeyBinds(false);
+		MySettings.Keys_Invite_Only = bound;
+
+	KeybindsDisabled = (MySettings.Keys_Open_Menu == -1 && MySettings.Keys_Clear_Session == -1 && MySettings.Keys_Invite_Only == -1);
+	ReBuildIni();
+}
+void ToggleKeyDisable()
+{
+	if (KeybindsDisabled)
+	{
+		MySettings.Keys_Open_Menu = -1;
+		MySettings.Keys_Clear_Session = -1;
+		MySettings.Keys_Invite_Only = -1;
+	}
+	else
+	{
+		MySettings.Keys_Open_Menu = 90;
+		MySettings.Keys_Clear_Session = 88;
+		MySettings.Keys_Invite_Only = 67;
+	}
+	ReBuildIni();
 }
 void Pz_KeyBindsKeys()
 {
@@ -6194,6 +6274,7 @@ void Pz_KeyBindsKeys()
 		Pz_MenuList.pop_back();
 
 	std::vector<GVM::GVMFields> PzMenuz = {
+		GVM::GVMFields("Disable Keyboard Binds", "", &KeybindsDisabled, &ToggleKeyDisable, true),
 		GVM::GVMFields(PZTranslate[158], "", &KeysBound),
 		GVM::GVMFields(PZTranslate[159], "", &KeysBound),
 		GVM::GVMFields(PZTranslate[160], "", &KeysBound)
@@ -6367,12 +6448,12 @@ void Pz_PickFaveVeh(int index, void* obj)
 				for (int i = 0; i < (int)PreVeh_05.size(); i++)
 					PzMenuz.push_back(GVM::GVMFields(PreVeh_05[i], GetVehName(PreVeh_05[i]), &Pz_PickFaveVeh, obj, &PreVeh_05[i]));
 			}
-			else
-			{
-				iVehList = 6;
-				for (int i = 0; i < (int)PreVeh_06.size(); i++)
-					PzMenuz.push_back(GVM::GVMFields(PreVeh_06[i], GetVehName(PreVeh_06[i]), &Pz_PickFaveVeh, obj, &PreVeh_06[i]));
-			}
+			// else — weaponised road vehicles removed from menu
+			// {
+			//	iVehList = 6;
+			//	for (int i = 0; i < (int)PreVeh_06.size(); i++)
+			//		PzMenuz.push_back(GVM::GVMFields(PreVeh_06[i], GetVehName(PreVeh_06[i]), &Pz_PickFaveVeh, obj, &PreVeh_06[i]));
+			// }
 			GVM::GVMSystem MyMenu = GVM::GVMSystem("--" + Friend->Name + "--", PzMenuz);
 			Pz_MenuList.push_back(MyMenu);
 		}
@@ -6855,6 +6936,9 @@ void main()
 
 	if (FileExists(ZeroCayo))
 		FileRemoval(ZeroCayo);
+
+	if (FileExists(ZeroLC))
+		FileRemoval(ZeroLC);
 
 	if (FileExists(sSnowie))
 		FileRemoval(sSnowie);
