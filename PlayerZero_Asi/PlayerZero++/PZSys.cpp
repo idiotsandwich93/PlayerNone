@@ -995,10 +995,12 @@ namespace PZSys
 		else
 		{
 			// Determine active map on every call (cheap: one PlayerPosi() + one compare).
-			// LCPP's lowest spawn coord is X~3989; vanilla LS land tops out around
-			// X~3000, so X > 3500 is comfortably past LS ocean and inside LCPP.
+			// LCPedLocSpawns lowest entry is X=3019 (Alderney/western LC); vanilla LS
+			// land tops out around X=1899. X > 3000 catches all LC entries without
+			// catching any LS land. Tighter thresholds (e.g. 3500) miss LC's western
+			// cluster and cause cross-map ped spawn-deaths in Alderney.
 			Vector3 pPos = PlayerPosi();
-			const bool isLC = (pPos.x > 3500.0f);
+			const bool isLC = (pPos.x > 3000.0f);
 
 			// Cap near-player spawns: only 4 on-foot peds allowed within 100m before
 			// switching to location-based spawns. Larger radius (50-100m) means new
@@ -1042,7 +1044,7 @@ namespace PZSys
 				// Hard guard: if chosen coord is on the wrong map for any reason,
 				// fall back to near-player spawn so peds never drown off-map.
 				const Vector4& chosen = locList[picked];
-				if ((chosen.X > 3500.0f) != isLC)
+				if ((chosen.X > 3000.0f) != isLC)
 					Pos = InAreaOf(PlayerPosi(), 30.0f, 60.0f);
 				else
 					Pos = Vector4(chosen.X, chosen.Y, chosen.Z, chosen.R);
@@ -1098,7 +1100,7 @@ namespace PZSys
 			// heading — those coords are curated with the correct direction;
 			// overwriting caused wrong-way drives and broken AI tasks.
 			Vector3 pCheck = PlayerPosi();
-			const bool isLC = (pCheck.x > 3500.0f);
+			const bool isLC = (pCheck.x > 3000.0f);
 			Vector3 roadPos; float roadHeading = Pos.R;
 			if (PATHFIND::GET_CLOSEST_VEHICLE_NODE_WITH_HEADING(
 				Pos.X, Pos.Y, Pos.Z, &roadPos, &roadHeading, 1, 3.0f, 0))
@@ -1126,7 +1128,7 @@ namespace PZSys
 		else
 		{
 			Vector3 pPos = PlayerPosi();
-			if (pPos.x > 3500.0f)
+			if (pPos.x > 3000.0f)
 			{
 				// LC (LPP): pick a random LC borough centre (SanLoocIndex 16-20)
 				// and return the nearest VehDrop point in that region.

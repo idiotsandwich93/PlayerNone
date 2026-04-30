@@ -152,6 +152,54 @@ void ApplyGangColorProp(Ped ped, const std::string& gangID)
 	}
 }
 
+// Hard blacklist of outfit categories that must NEVER be applied to PZ peds —
+// no police, FIB, prison, or private-security gear on civilians or gang members.
+// Match is by case-insensitive substring on the outfit filename, so it catches
+// every variant regardless of which include-prefix matched first.
+bool IsForbiddenOutfitFile(const std::string& fname)
+{
+	static const char* sForbidden[] = {
+		"FIB", "Police", "LSPD", "Sheriff", "Cop ", "SWAT",
+		"Securoserv", "SecuroServ", "Gruppe", "Prison Guard",
+		"CEO Associates", "Agents ", "Smuggler", "Special",
+		// Diamond Casino Heist contains FIB / Gruppe / Prison Guard variants
+		"Diamond Casino Heist",
+		// Cayo Perico Heist contains guard / military variants
+		"Cayo Perico Heist",
+		// Heist (original) — many variants are uniformed roles
+		"Heist"
+	};
+	std::string lower = fname;
+	for (auto& c : lower) c = (char)tolower((unsigned char)c);
+	for (const char* needle : sForbidden)
+	{
+		std::string n = needle;
+		for (auto& c : n) c = (char)tolower((unsigned char)c);
+		if (lower.find(n) != std::string::npos) return true;
+	}
+	return false;
+}
+
+// Strips any forbidden (police/FIB/etc) outfit files from a list in place.
+void StripForbiddenOutfits(std::vector<std::string>& files)
+{
+	std::vector<std::string> kept;
+	kept.reserve(files.size());
+	for (const auto& fp : files)
+	{
+		std::string fname = fp;
+		size_t sl = fp.rfind('/');
+		size_t bs = fp.rfind('\\');
+		size_t sep = std::string::npos;
+		if (sl != std::string::npos && bs != std::string::npos) sep = sl > bs ? sl : bs;
+		else if (sl != std::string::npos) sep = sl;
+		else if (bs != std::string::npos) sep = bs;
+		if (sep != std::string::npos) fname = fp.substr(sep + 1);
+		if (!IsForbiddenOutfitFile(fname)) kept.push_back(fp);
+	}
+	files = std::move(kept);
+}
+
 ClothX GetGangCloths(const std::string& gangID, bool male)
 {
 	LoggerLight("-GetGangCloths- " + gangID);
@@ -240,7 +288,15 @@ ClothX GetGangCloths(const std::string& gangID, bool male)
 			if (fname.find(prefix) == 0) { Filtered.push_back(fp); break; }
 		}
 	}
-	if (Filtered.empty()) Filtered = Files; // fallback: use everything
+	// Defense in depth: strip any police/FIB/security/prison outfit files that
+	// somehow slipped through the prefix include filter.
+	StripForbiddenOutfits(Filtered);
+
+	// If the prefix include filter (or the strip above) leaves us with nothing,
+	// fall back to the safe built-in default outfit -- NEVER fall back to "all
+	// files", which would re-introduce the police/FIB/etc variants we just
+	// excluded.
+	if (Filtered.empty()) return male ? MaleDefault : FemaleDefault;
 
 	int Rando = LessRandomInt(male ? "GangOutfit_M" : "GangOutfit_F", 0, (int)Filtered.size() - 1);
 
@@ -318,6 +374,13 @@ ClothX GetCloths(bool male)
 		}
 		if (!Filtered.empty()) Files = std::move(Filtered);
 	}
+
+	// Defense in depth: strip any police/FIB/security/prison outfit files that
+	// somehow slipped through the civilian include filter. If the result is
+	// empty, return the safe built-in default rather than risk picking from an
+	// unfiltered list -- civilian PZ peds must NEVER wear law-enforcement gear.
+	StripForbiddenOutfits(Files);
+	if (Files.empty()) return male ? MaleDefault : FemaleDefault;
 
 	int Rando = 0;
 	if (male)
@@ -1735,31 +1798,43 @@ Hash GetGangGroupForZone(Ped peddy)
 
 // Mirrors the GP_Attack relationship values onto a gang group so that
 // LSR-recognised gang NPCs still behave identically to hostile PZ NPCs.
+//
+// GTA V acquaintance values: 0=Companion, 1=Respect, 2=Like, 3=Neutral, 4=Dislike, 5=Hate.
+//
+// Only player-vs-gang scales with the Aggression slider. Everything else is fixed:
+// rivals always hate rivals, gangs always hate hostile/mental NPCs and outsider followers.
+// (A previous version neutralized most of these to "fix" random ped deaths -- that was a
+// misdiagnosis; the real cause was iterator invalidation in PedList, fixed separately.)
 void ApplyGangRelationships(Hash gangGroup)
 {
-	int hostileVal = (MySettings.Aggression <= 3) ? 3 : 5;
-	int playerVal  = (MySettings.Aggression > 5)  ? 5 : 3;
+	int playerVal = (MySettings.Aggression > 5) ? 5 : (MySettings.Aggression >= 3 ? 4 : 3);
 
-	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(playerVal,  GP_Player,  gangGroup);
-	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(playerVal,  gangGroup,  GP_Player);
-	// Neutral toward friendly/non-gang PZ groups -- avoids ambient GTA AI auto-combat
-	// that causes peds to die randomly. FindAFight/GreefWar handle explicit targeting.
-	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(3, gangGroup,  Gp_Friend);
-	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(3, Gp_Friend,  gangGroup);
-	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, gangGroup,  Gp_Follow);
-	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, Gp_Follow,  gangGroup);
-	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(3, gangGroup,  GP_Attack);
-	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(3, GP_Attack,  gangGroup);
-	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(hostileVal, gangGroup,  GP_Mental);
-	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(hostileVal, GP_Mental,  gangGroup);
-	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(0,          gangGroup,  gangGroup); // same gang: neutral
+	// Player group: scales with Aggression slider (only place it should matter).
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(playerVal, GP_Player, gangGroup);
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(playerVal, gangGroup, GP_Player);
 
-	// Set hostility between this gang and every other currently active gang group.
+	// Outsider followers/friends: gang treats them as targets.
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, gangGroup, Gp_Friend);
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, Gp_Friend, gangGroup);
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, gangGroup, Gp_Follow);
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, Gp_Follow, gangGroup);
+
+	// Aggressive groups: mutual hate. Neutral here makes no sense -- these groups exist
+	// specifically to be hostile.
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, gangGroup, GP_Attack);
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, GP_Attack, gangGroup);
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, gangGroup, GP_Mental);
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, GP_Mental, gangGroup);
+
+	// Same gang: companions.
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(0, gangGroup, gangGroup);
+
+	// Rival gangs: always hate each other, regardless of Aggression slider.
 	for (Hash other : ActiveGangGroups)
 	{
 		if (other == gangGroup) continue;
-		PED::SET_RELATIONSHIP_BETWEEN_GROUPS(hostileVal, gangGroup, other);
-		PED::SET_RELATIONSHIP_BETWEEN_GROUPS(hostileVal, other,     gangGroup);
+		PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, gangGroup, other);
+		PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, other,     gangGroup);
 	}
 }
 
@@ -3130,14 +3205,22 @@ void OnlineDress(Ped peddy, ClothX* clothClass)
 			PED::SET_PED_PROP_INDEX(peddy, i, clothClass->ExtraA[i], clothClass->ExtraB[i], false);
 	}
 
-	// Re-apply torso (component 3) AFTER jacket (component 11) so GTA picks the correct arm mesh.
-	// Freemode models determine arm drawable from the active jacket; setting component 3 before
-	// component 11 in the loop above can leave arms invisible on some outfit combos.
+	// Force the (top, torso) pair LAST, in the correct order, to guarantee arm visibility.
+	// Freemode peds' arm mesh is auto-derived from the (comp 3, comp 11) pair. When the loop
+	// above sets comp 11, the engine can silently switch comp 3 to a "default torso" if it
+	// considers the outfit's pair inconsistent — leaving arms invisible. Re-applying comp 11
+	// first, then comp 3, forces the engine to commit to the outfit author's intended pair.
+	//
+	// Palette ID is 0 (universal default) NOT 2: palette 2 is reserved for tinted MP heist
+	// drawables and silently no-ops on regular torso meshes, which leaves arms unrendered.
+	if ((int)clothClass->ClothA.size() > 11 && clothClass->ClothA[11] >= 0)
+		PED::SET_PED_COMPONENT_VARIATION(peddy, 11, clothClass->ClothA[11], clothClass->ClothB[11], 0);
+
 	// If the outfit has no explicit comp3 value (-1), fall back to drawable 15 — the universal
 	// freemode base torso (no gloves, bare arms). LSR uses 15 as its reset default for comp3.
 	int comp3Draw = ((int)clothClass->ClothA.size() > 3 && clothClass->ClothA[3] >= 0) ? clothClass->ClothA[3] : 15;
 	int comp3Tex  = ((int)clothClass->ClothB.size() > 3 && clothClass->ClothB[3] >= 0) ? clothClass->ClothB[3] : 0;
-	PED::SET_PED_COMPONENT_VARIATION(peddy, 3, comp3Draw, comp3Tex, 2);
+	PED::SET_PED_COMPONENT_VARIATION(peddy, 3, comp3Draw, comp3Tex, 0);
 }
 void OnlineFaces(Ped peddy, ClothBank* clothBankClass)
 {
@@ -3322,9 +3405,12 @@ inline const std::vector<std::string> AnimalFarm = {
 	"a_c_mtlion",//"mountain lion" />17
 	"a_c_pig",//"a_c_pig" />		18
 };
+extern int InFlightSpawns;
 Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 {
 	LoggerLight("PlayerPedGen = " + brain->MyName);
+
+	InFlightSpawns++;
 
 	Ped ThisPed = NULL;
 
@@ -3670,6 +3756,7 @@ Ped PlayerPedGen(Vector4 pos, PlayerBrain* brain, bool partyPed)
 	else
 		ThisPed = NULL;
 
+	InFlightSpawns--;
 	return ThisPed;
 }
 
@@ -5939,6 +6026,10 @@ void ProcessPZ(PlayerBrain* brain)
 
 int AiPedCount = 0;
 int AiAppCount = 0;
+// In-flight counter for PlayerPedGen. Incremented at entry, decremented at return.
+// While > 0, AI loop must NOT erase from PedList — a captured PlayerBrain* may be
+// mid-WAIT inside PlayerPedGen, and erase() shifts elements, invalidating that pointer.
+int InFlightSpawns = 0;
 void PlayerZerosAI()
 {
 
@@ -5961,7 +6052,16 @@ void PlayerZerosAI()
 		if (AiPedCount < (int)PedList.size())
 		{
 			if (PedList[AiPedCount].TimeToGo)
-				PedList.erase(PedList.begin() + AiPedCount);
+			{
+				// Only erase if no PlayerPedGen is currently mid-WAIT holding a
+				// PlayerBrain* into PedList — otherwise erase() shifts elements
+				// and the in-flight pointer will write to the wrong brain (or
+				// freed memory). The TimeToGo flag is sticky; we'll catch this
+				// brain on a future tick once spawns settle.
+				if (InFlightSpawns == 0)
+					PedList.erase(PedList.begin() + AiPedCount);
+				// else: defer — leave AiPedCount alone so we re-check next tick
+			}
 			else
 				ProcessPZ(&PedList[AiPedCount]);
 			AiPedCount++;
@@ -6923,6 +7023,12 @@ void JustMenus()
 DWORD waitTime = 0;
 void main()
 {
+	// Reserve PedList capacity up front. push_back beyond capacity reallocates
+	// the underlying buffer, invalidating every PlayerBrain* held by in-flight
+	// PlayerPedGen calls (which capture &PedList[size-1] and then WAIT for
+	// model load). 256 is well above any realistic concurrent ped count.
+	PedList.reserve(256);
+
 	DirectoryTest();
 
 	if (FileExists(DisablePZExt))

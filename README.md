@@ -139,6 +139,78 @@ Change Log
 ---- Fork Changes by idiotsandwich93 ----
 
 
+-- v66 - v68: Iterator-Invalidation Deep Fix, Gang Relationship Overhaul, Missing Arms, Police Outfit Purge --
+
+Spawn / map detection
+- Removed the LibertyCity.txt marker file mechanism entirely (v66). The marker
+  was half-baked — the mod auto-deleted it on startup but had no way to
+  recreate it, forcing users to drop it in manually every game launch. LCPP is
+  a permanent add-on, so player coordinates alone are enough to identify the
+  active map. isLC in FindPedSpPoint, FindVehSpPoint, and RandomLocation now
+  triggers purely on player X position.
+- Lowered LC threshold from X > 3500 to X > 3000 (v67). The 3500 threshold
+  missed 13 LCPedLocSpawns entries in the X 3019-3499 range (Alderney /
+  western LC), causing peds to fail the cross-map sanity check in those
+  regions and fall back to near-player spawns. Vanilla LS land tops at
+  X = 1899 so X > 3000 has zero false positives.
+
+Random ped deaths / "wrecking ball" pattern (v68)
+- Root cause was iterator and pointer invalidation in PedList — a
+  std::vector<PlayerBrain> stored by value with no reserved capacity. Two
+  hazards were corrupting in-flight ped spawns:
+    1. push_back beyond capacity reallocated the vector, invalidating every
+       PlayerBrain* held by an active PlayerPedGen call.
+    2. PedList.erase mid-tick shifted indices, so a captured brain pointer
+       would write to the wrong brain (or freed memory) when PlayerPedGen
+       resumed after its WAIT for model load.
+  This was timing-dependent — any unrelated code change would shift WAIT
+  timing and re-trigger the bug, which is why every previous "fix" appeared
+  to break spawning again.
+- Three-part fix: PedList.reserve(256) at mod startup eliminates realloc
+  invalidation; a new InFlightSpawns counter is incremented at PlayerPedGen
+  entry and decremented at return; PlayerZerosAI defers PedList.erase while
+  InFlightSpawns > 0 (the TimeToGo flag is sticky so flagged brains get
+  cleaned up on a later tick once spawns settle).
+
+Gang relationships (v68)
+- Reverted a misguided previous "fix" that neutralized most gang
+  relationships in an attempt to suppress random ped deaths — the deaths
+  were actually the iterator bug, not ambient combat. Result was rival
+  gangs ignoring each other (NUKEM631 report).
+- Rival gangs now always hate each other (relationship value 5),
+  independent of the Aggression slider. Aggression only controls
+  player-vs-gang intensity (3 / 4 / 5 in steps).
+- Gang vs Gp_Friend, Gp_Follow, GP_Attack, and GP_Mental all set to 5
+  (Hate). Same gang stays at 0 (Companion).
+
+Missing arms on freemode peds (v68)
+- OnlineDress now re-applies BOTH component 11 (top) AND component 3
+  (torso) at the end of dressing, in that order. Setting only component 3
+  last (the prior fix) wasn't enough — the engine sometimes silently
+  switches comp 3 to a default torso when comp 11 is set, and re-applying
+  comp 11 first forces the engine to commit to the outfit author's
+  intended (comp 3, comp 11) pair.
+- Palette ID for the comp 3 final apply changed from 2 to 0. Palette 2 is
+  reserved for tinted MP heist drawables and silently no-ops on standard
+  torso meshes, leaving arms unrendered.
+
+Police / FIB / security gear purge (v68)
+- New IsForbiddenOutfitFile blacklist runs on every outfit lookup
+  (GetCloths and GetGangCloths) — case-insensitive substring match against
+  FIB, Police, LSPD, Sheriff, Cop, SWAT, Securoserv, Gruppe, Prison Guard,
+  CEO Associates, Agents, Smuggler, Special, Diamond Casino Heist, Cayo
+  Perico Heist, Heist. PZ peds will never wear law-enforcement or
+  private-security attire, regardless of which prefix-include filter
+  matched first.
+- Closed the "fallback to all files" loophole in both functions. Previously
+  if the include-prefix filter returned an empty list (e.g. user has a
+  non-standard Outfits folder), the code fell back to using every outfit
+  file — re-introducing the very FIB / Securoserv / Prison Guard variants
+  the include filter was meant to exclude. Now both functions return the
+  built-in safe default (MaleDefault / FemaleDefault) when filtering
+  yields nothing.
+
+
 -- v61 - v65: Spawn Stability, Combat Overhaul, Weaponized Vehicle Purge --
 
 Spawn / map detection
