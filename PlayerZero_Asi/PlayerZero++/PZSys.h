@@ -6686,7 +6686,6 @@ namespace PZData
 	inline const std::string NspmTargs = DirectMain + "/ZeroLoc.ini";
 	inline const std::string ZeroYank = DirectMain + "/Yankton.txt";
 	inline const std::string ZeroCayo = DirectMain + "/Cayo.txt";
-	inline const std::string ZeroLC   = DirectMain + "/LibertyCity.txt";
 	inline const std::string sSnowie = DirectMain + "/Pz_Memo.txt";
 	inline const std::string sYachtPart = DirectMain + "/YachtParty.ini";
 	inline const std::string sYachtPart2 = DirectMain + "/YachtParters.ini";

@@ -142,16 +142,16 @@ Change Log
 -- v61 - v65: Spawn Stability, Combat Overhaul, Weaponized Vehicle Purge --
 
 Spawn / map detection
-- Added explicit Liberty City file marker. PlayerNone/LibertyCity.txt must
-  exist for the mod to switch into LCPP mode. isLC detection in
-  FindPedSpPoint, FindVehSpPoint, and RandomLocation now requires both
-  the marker file AND player X > 2800. Eliminates the long-standing
-  "playerz spawn in and immediately die" loop caused by LS players
-  flying over the eastern ocean (X > 2800) being misidentified as in
-  Liberty City and given LC spawn coordinates while LCPP is not loaded.
-- ZeroLC marker is auto-removed at mod startup, matching the existing
-  ZeroYank (Yankton) and ZeroCayo (Cayo Perico) pattern. Map switcher
-  mods should recreate the appropriate marker file each session.
+- Tightened LCPP detection threshold. isLC in FindPedSpPoint,
+  FindVehSpPoint, and RandomLocation now triggers on player X > 3500
+  instead of X > 2800. Eliminates the long-standing "playerz spawn in
+  and immediately die" loop caused by LS players flying over the
+  eastern ocean (X > 2800) being misidentified as in Liberty City and
+  given LC spawn coordinates while LCPP was not loaded. The new 3500
+  threshold sits comfortably between vanilla LS's eastern reach
+  (~X 3000) and LCPP's lowest spawn coordinate (X ~3989), so no marker
+  file or external map-switcher integration is needed — the mod
+  detects LCPP purely from player position.
 
 Inter-gang combat and target picking
 - ApplyGangRelationships now sets hostility between every pair of

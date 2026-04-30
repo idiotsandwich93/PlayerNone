@@ -6937,9 +6937,6 @@ void main()
 	if (FileExists(ZeroCayo))
 		FileRemoval(ZeroCayo);
 
-	if (FileExists(ZeroLC))
-		FileRemoval(ZeroLC);
-
 	if (FileExists(sSnowie))
 		FileRemoval(sSnowie);
 
