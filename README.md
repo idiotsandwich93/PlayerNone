@@ -139,6 +139,34 @@ Change Log
 ---- Fork Changes by idiotsandwich93 ----
 
 
+-- v69 - v70: Neighborhood-Class Calm, Mobile Phone Contacts --
+
+Wealthy / middle-class neighborhoods felt as violent as Davis after v68 (v69)
+- v68's gang-relationship rewrite hardcoded gangGroup vs Gp_Friend to 5
+  (Hate) for every active gang, which silently overrode the per-zone
+  friendly-spawn rolls. Rich and middle-class zones still spawned 85% /
+  medium friendly civilians as designed (script.cpp lines 3585-3593),
+  but the few hostile gang peds in those zones immediately attacked
+  the Gp_Friend civilians around them, so wealthy areas felt the same
+  as poor ones.
+- Hardcode gangGroup vs Gp_Friend to 3 (Neutral) regardless of
+  Aggression. Combined with the existing spawn-time rolls (rich = 85%
+  friendly, poor = 25% friendly, gang-den proximity = forced hostile)
+  rich neighborhoods stay calm and poor neighborhoods stay dangerous.
+  Rival-gang hate (5) and same-gang companion (0) preserved from v68's
+  NUKEM631 fix.
+
+"Add to Mobile Phone" silently dropped live follower contacts (v70)
+- AddPhoneFriends in PZSys.cpp gated the mobile-net file write on
+  (IsMobileCont && !InSession). When you added a follower as a contact
+  and then toggled "Add to Mobile Phone" on them, InSession was true
+  (set by AddNewContact and re-set by LoadContacts whenever the ped is
+  currently in PedList), so the PzContacts<Name>.ini file was never
+  written and the contact never appeared in the in-game phone.
+- Drop the !InSession guard. Toggling Add to Mobile now writes the
+  entry whether or not the contact is currently spawned.
+
+
 -- v66 - v68: Iterator-Invalidation Deep Fix, Gang Relationship Overhaul, Missing Arms, Police Outfit Purge --
 
 Spawn / map detection
