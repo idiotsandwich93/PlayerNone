@@ -1,7 +1,5 @@
 PlayerNone
 
-Story mode was never meant to feel empty. PlayerNone fixes that.
-
 Originally a fork of the PlayerZero mod, PlayerNone has been rebuilt from the ground up into
 something far beyond its origins — a full living session simulation that populates your story
 mode world with AI characters modeled after GTA Online players. Not NPCs. Players. Named,
