@@ -1801,26 +1801,31 @@ Hash GetGangGroupForZone(Ped peddy)
 //
 // GTA V acquaintance values: 0=Companion, 1=Respect, 2=Like, 3=Neutral, 4=Dislike, 5=Hate.
 //
-// Only player-vs-gang scales with the Aggression slider. Everything else is fixed:
-// rivals always hate rivals, gangs always hate hostile/mental NPCs and outsider followers.
-// (A previous version neutralized most of these to "fix" random ped deaths -- that was a
-// misdiagnosis; the real cause was iterator invalidation in PedList, fixed separately.)
+// Rivals always hate rivals (NUKEM631 fix), same-gang are companions, player vs gang scales
+// with Aggression. The remaining pairs (gang vs civilians/hostiles/mentals/followers) MUST
+// mirror the Aggression-scaled values in SetRelationType -- otherwise gang peds ignore the
+// slider and constantly attack civilians (Gp_Friend), wrecking the calm-neighborhood feel
+// in wealthy/middle-class zones where 85%/medium of peds spawn friendly.
 void ApplyGangRelationships(Hash gangGroup)
 {
 	int playerVal = (MySettings.Aggression > 5) ? 5 : (MySettings.Aggression >= 3 ? 4 : 3);
 
-	// Player group: scales with Aggression slider (only place it should matter).
+	// Player vs gang: scales with Aggression slider.
 	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(playerVal, GP_Player, gangGroup);
 	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(playerVal, gangGroup, GP_Player);
 
-	// Outsider followers/friends: gang treats them as targets.
-	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, gangGroup, Gp_Friend);
-	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, Gp_Friend, gangGroup);
+	// Gangs are NEUTRAL toward civilians (Gp_Friend). This is what keeps wealthy zones
+	// calm: 85% of peds in rich areas spawn into Gp_Friend, and the few hostile gang
+	// peds nearby ignore them rather than auto-engaging. Reverse holds in poor zones
+	// (more hostile spawns, fewer civilians, so the calm doesn't really matter).
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(3, gangGroup, Gp_Friend);
+	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(3, Gp_Friend, gangGroup);
+
+	// Player followers: always hated.
 	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, gangGroup, Gp_Follow);
 	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, Gp_Follow, gangGroup);
 
-	// Aggressive groups: mutual hate. Neutral here makes no sense -- these groups exist
-	// specifically to be hostile.
+	// Other hostile groups / mentals: gangs fight them.
 	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, gangGroup, GP_Attack);
 	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, GP_Attack, gangGroup);
 	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, gangGroup, GP_Mental);
@@ -1829,7 +1834,7 @@ void ApplyGangRelationships(Hash gangGroup)
 	// Same gang: companions.
 	PED::SET_RELATIONSHIP_BETWEEN_GROUPS(0, gangGroup, gangGroup);
 
-	// Rival gangs: always hate each other, regardless of Aggression slider.
+	// Rival gangs: always hate each other (NUKEM631 fix).
 	for (Hash other : ActiveGangGroups)
 	{
 		if (other == gangGroup) continue;
