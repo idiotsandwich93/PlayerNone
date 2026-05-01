@@ -1507,9 +1507,12 @@ namespace PZSys
 
 		for (int i = 0; i < (int)PhoneContacts.size(); i++)
 		{
-			if (PhoneContacts[i].YourFriend.IsMobileCont && !PhoneContacts[i].InSession)
+			// Write a mobile entry whenever the contact has IsMobileCont=true.
+			// Previously also gated on !InSession, which silently dropped live
+			// follower-contacts the user had just toggled "Add to Mobile" on.
+			if (PhoneContacts[i].YourFriend.IsMobileCont)
 				AddContacttoList(PhoneContacts[i]);
-		}		
+		}
 	}
 	void CleanNameList()
 	{
